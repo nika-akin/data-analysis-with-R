@@ -16,6 +16,7 @@ By the end of the course participants should be:
 - Able to import, wrangle, and explore their data with `R`
 - Able to conduct basic visualizations and analyses of their data with `R`
 - Able to generate reproducible research reports using `R Markdown`
+- Able to run LLMs locally in `R Studio` and evaluate model inference
 
 # Course Schedule
 
