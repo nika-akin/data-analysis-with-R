@@ -1,0 +1,488 @@
+---
+title: "Data Literacy: Introduction to R"
+subtitle: "Data Wrangling - Part 2"
+author: "Veronika Batzdorfer"
+date: "2024-11-21"
+presenter: Veronika
+editor_options: 
+  chunk_output_type: console
+---
+layout: true 
+
+```{r child = "content/config/sessions_setup.Rmd"}
+```
+
+---
+
+## Data wrangling continued `r ji("cowboy_hat_face")`
+
+While in the last session we focused on changing the structure of our data by **selecting**, **renaming**, and **relocating** columns and **filtering** and **arranging** rows, in this part we will focus on altering the content of data sets by *adding* and *changing* variables and variable values. More specifically, we will deal with...
+
+- creating and computing new variables (in various ways)
+
+- recoding the values of a variable
+
+- dealing with missing values
+
+---
+
+## Creating & transforming variables
+
+We can also add new variables by changing the data type of an existing variable. 
+
+```{r base-add-type}
+stackoverflow_survey_single_response$id_char <- as.character(stackoverflow_survey_single_response$response_id)
+
+typeof(stackoverflow_survey_single_response$response_id)
+typeof(stackoverflow_survey_single_response$id_char)
+
+```
+
+*Note*: In case you want to overwrite a variable, you can do so by giving the new variable the same name as the old one.   
+
+---
+
+## Creating & transforming variables
+
+The `dplyr` package provides a very versatile function for creating and transforming variables: `mutate()`, which you can also use to create a new variable that is a constant, ...
+
+```{r mutate-constant}
+
+library(conflicted)
+library(tidyverse)
+
+# Specify which version of a function to use when there's a conflict
+conflict_prefer("filter", "dplyr")
+conflict_prefer("mutate", "dplyr")
+
+tuesdata_2024 <- stackoverflow_survey_single_response %>% 
+  dplyr::mutate(year = 2024)
+
+tuesdata_2024 %>% 
+  dplyr::select(year) %>% 
+  head()
+```
+
+---
+
+## Creating & transforming variables
+
+... applies a simple transformation to an existing variable, ...
+
+```{r mutate-transform}
+tuesdata_2024 <- stackoverflow_survey_single_response %>% 
+  dplyr::mutate(freq_new = so_part_freq - 1)
+
+tuesdata_2024 %>% 
+  dplyr::select(starts_with("freq")) %>% 
+  head
+```
+
+---
+
+## Creating & transforming variables
+
+... or changes the data type of an existing variable.
+
+```{r mutate-type}
+tuesdata_2024 <- tuesdata_2024 %>% 
+  dplyr::mutate(id_char = as.character(response_id))
+
+tuesdata_2024 %>% 
+  dplyr::select(response_id, id_char) %>% 
+  glimpse()
+```
+
+---
+
+## `dplyr::mutate()`
+
+```{r, mutate-cartoon, out.width = "60%", echo = F}
+knitr::include_graphics("https://github.com/allisonhorst/stats-illustrations/blob/main/rstats-artwork/dplyr_mutate.png?raw=true")
+```
+<small><small>Artwork by [Allison Horst](https://github.com/allisonhorst/stats-illustrations)</small></small>
+
+---
+
+## Recoding values
+
+Say, for example, we want to recode the item on organisation size (`org_size`) so that higher values represent higher employee size. For that purpose, we can combine the two `dplyr` functions `mutate()` and `recode()`.
+See `qname_levels_single_response_crosswalk`
+
+.small[
+```{r recode}
+stackoverflow_survey_single_response <- stackoverflow_survey_single_response %>% 
+  dplyr::mutate(org_size_R = dplyr::recode(org_size,
+                           `5` = 1, # `old value` = new value
+                           `2` = 2,
+                           `6` = 3,
+                           `4` = 4,
+                           `8` = 5,
+                           `1` = 6,
+                           `7` = 7,
+                           `3` = 8,
+                           `9` = 99,
+                           ))
+
+table(stackoverflow_survey_single_response$org_size, stackoverflow_survey_single_response$org_size_R)
+```
+]
+
+
+
+---
+
+## Wrangling missing values
+
+When we prepare our data for analysis there are generally two things we might want/have to do with regard to missing values:
+
+- define specific values as missings (i.e., set them to `NA`)
+
+- recode `NA` values into something else 
+
+---
+
+## Recode values as `NA`
+
+While `na_if()` can be applied to a specified selection of variables if combined with another `dplyr` function that we will cover in a bit, the `base R` and `tidyverse` options for recoding values as `NA` are somewhat difficult to use when they should be used for a selection or range of many different values. There are, however, functions from two other packages that come in handy here:
+
+- `set_na()` from the [`sjlabelled` package](https://strengejacke.github.io/sjlabelled/index.html)
+- `replace_with_na()` and its scoped variants, such as `replace_with_na_all()`, from the [`naniar` package](http://naniar.njtierney.com/index.html) `r ji("lion")`
+
+
+---
+
+## The missings of `naniar` `r ji("lion")`
+
+The `naniar` package provides many useful functions for handling missing data in `R` (and works very well in combination with the `tidyverse`). For example, we can use the function `replace_with_na_all` to code every value in our data set that is < 0 as `NA`.
+
+```{r naniar-all-zero, eval=FALSE}
+tuesdata <- stackoverflow_survey_single_response %>%
+  replace_with_na_all(condition = ~.x < 0)
+```
+
+Using the functions `replace_with_na_at()` and `replace_with_na_if()`, we can also recode values as `NA` for a selection or specific type of variables (e.g., all numeric variables).
+
+---
+
+## When to deal with missing values?
+
+While, as the previous examples should have shown, you can include the handling of missing values as part of your data wrangling, the simpler option can be to deal with them already in the data import step. As we have seen, many data import functions, such as `read_csv()` or `read_sav()` include arguments that can be used to indicate what values should be specified as `NA`. However, this is only the (potentially) more comfortable option if the values that should be treated as missing are the same across all variables in the data set.
+
+---
+
+## Dealing with missing values in `R`
+
+As with everything in `R`, there are also many online resources on dealing with missing data. A fairly new and interesting one is the [chapter on missing values on the work-in progress 2nd edition of *R for Data Science*](https://r4ds.hadley.nz/missing-values.html). 
+
+There also are various packages for different imputation techniques. A popular one is the [`mice` package](https://amices.org/mice/). However, we won't cover the topic of imputation in this course.
+
+---
+
+## Excluding cases with missing values
+
+If you want to exclude observations with missing values for individual variables, you can use `!is.na(variable_name)` with your filtering method of choice. However, there are also methods for only keeping complete cases (i.e., cases without missing data). The `base R` function for that is `na.omit()`
+
+```{r na-omit}
+tuesdata_complete <- na.omit(stackoverflow_survey_single_response) 
+
+nrow(tuesdata_complete)
+```
+
+*NB*: Of course, the number of excluded/included cases depends on how you have defined your missings values before.
+
+---
+
+## Excluding cases with missing values
+
+The `tidyverse` equivalent of `na.omit()` is `drop_na()` from the `tidyr` package. You can use this function to remove cases that have missings on any variable in a data set or only on specific variables.
+
+```{r drop-na}
+stackoverflow_survey_single_response %>% 
+  drop_na() %>% 
+  nrow()
+
+stackoverflow_survey_single_response %>% 
+  drop_na(ai_threat) %>% 
+  nrow()
+```
+
+*NB*: Of course, the number of excluded/included cases depends on how you have defined your missings values before.
+
+---
+
+## Recode `NA` into something else
+
+An easy option for replacing `NA` with another value for a single variable is the `replace_na()` function from the `tidyr` package in combination with `mutate()`.
+
+```{r replace-na, eval = F}
+tuesdata <- stackoverflow_survey_single_response %>% 
+  mutate(ai_threat = replace_na(ai_threat, -99))
+
+```
+
+**NB**: This particular example does not make much sense (so you should probably not execute this code). You can, however, specify different values for different types of missing values. To do this, you probably need to make the recoding dependent on (values in) other variables.
+
+---
+
+
+## Conditional variable transformation
+
+Sometimes, things are a bit more complicated when it comes to creating new variables. Simple recoding can be insufficient when we need to make the values of a new variable conditional on values of (multiple) other variables. Such cases require conditional transformations.
+
+---
+
+## Simple conditional transformation
+
+The simplest version of a conditional variable transformation is using an `ifelse()` statement.
+
+```{r mutate-ifelse}
+stackoverflow_survey_single_response <- stackoverflow_survey_single_response %>% 
+  dplyr::mutate(ed_char = ifelse(ed_level == 1, "professional", "beginner"))
+
+stackoverflow_survey_single_response %>% 
+  dplyr::select(ed_level, ed_char) %>% 
+  dplyr::sample_n(5) # randomly sample 5 cases from the df
+  
+```
+
+.small[
+*Note*: A more versatile option for creating dummy variables is the [`fastDummies` package](https://jacobkap.github.io/fastDummies/).
+]
+
+---
+
+## Advanced conditional transformation
+
+For more flexible (or complex) conditional transformations, the `case_when()` function from `dyplyr` is a powerful tool.
+
+```{r case-when}
+stackoverflow_survey_single_response <- stackoverflow_survey_single_response %>% 
+  dplyr::mutate(ed_level_cat = dplyr::case_when(
+    dplyr::between(ed_level, 2, 4) ~ "beginner",
+    dplyr::between(ed_level, 0, 1) ~ "expert",
+    ed_level > 5 ~ "other"
+    ))
+
+stackoverflow_survey_single_response %>% 
+  dplyr::select(ed_level, ed_level_cat) %>% 
+  dplyr::sample_n(5)
+```
+
+---
+
+## `dplyr::case_when()`
+
+A few things to note about `case_when()`:
+
+- you can have multiple conditions per value
+
+- conditions are evaluated consecutively
+
+- when none of the specified conditions are met for an observation, by default, the new variable will have a missing value `NA` for that case
+
+- if you want some other value in the new variables when the specified conditions are not met, you need to add `TRUE ~ value` as the last argument of the `case_when()` call
+
+- to explore the full range of options for `case_when()` check out its [online documentation](https://dplyr.tidyverse.org/reference/case_when.html) or run `?case_when()` in `R`/*RStudio*
+
+---
+
+## Applying the same transformation(s) to multiple variables
+
+The `dplyr` package provides a handy tool for applying transformations, such as recoding values or specifying missing values across a set of variables: `across()`.
+
+---
+
+
+## Recode values `across()` defined variables 
+
+We can also use `across()` to recode multiple variables. Here, we want to recode the items measuring trust so that they reflect distrust instead. In this case, we probably want to create new variables. We can do so by using the `.names` argument of the `across()` function (for details, check the help file for the function).
+
+```{r recode-across}
+stackoverflow_survey_single_response <- 
+  stackoverflow_survey_single_response %>% 
+  dplyr::mutate(
+    across(
+      ai_acc:ai_complex,
+      ~dplyr::recode(
+        .x,
+        `5` = 1, # `old value` = new value
+        `4` = 2,
+        `3` = 3,
+        `2` = 4,
+        `1` = 5,
+      ),
+      .names = "{.col}_R"))
+```
+
+---
+
+## Other options for using `across()`
+
+The `across()` function allows you to do (and can facilitate) quite a few things when it comes to variable transformation and creation. For example, it can be used with logical conditions (such as `is.numeric()`) or the `dplyr` selection helpers we encountered in the previous session (such as `starts_with()`) to apply transformations to variables of a specific type or meeting some other criteria (as well as all variables in a data set).
+
+To explore more options, you can check the [documentation for the `across()` function](https://dplyr.tidyverse.org/reference/across.html).
+
+---
+
+## `dplyr::across()`
+
+```{r, across-cartoon, out.width = "95%", echo = F}
+knitr::include_graphics("https://github.com/allisonhorst/stats-illustrations/blob/main/rstats-artwork/dplyr_across.png?raw=true")
+```
+<small><small>Artwork by [Allison Horst](https://github.com/allisonhorst/stats-illustrations)</small></small>
+
+---
+
+## Aggregate variables
+
+Something we might want to do as part of our data wrangling is to create aggregate variables, such as sum or mean scores based on a set of items.
+
+What is important to keep in mind here is that `dplyr` operations are applied per column. This is a common sources of confusion and errors as what we want to do in the case of creating aggregate variables requires transformations to be applied per row (respondent).
+
+---
+
+## Aggregate variables
+
+The most common type of aggregate variables are sum and mean scores.<sup>1</sup> An easy way to create those is combining the `base R` functions `rowSums()` and `rowMeans()` with `across()` from `dplyr`.
+
+.small[
+.footnote[
+[1] Of course, `R` offers many other options for dimension reduction, such as PCA, factor analyis, etc. However, we won't cover those in this course.
+]
+]
+
+---
+
+## Mean score
+
+In this example, we create a mean score for trust in ai in the workflow.
+
+```{r meanscore}
+stackoverflow_survey_single_response <- stackoverflow_survey_single_response %>%
+  dplyr::mutate(mean_ai_trust = rowMeans(dplyr::across(
+    ai_acc:ai_threat),
+    na.rm = TRUE))
+```
+
+---
+
+## More options for aggregate variables
+
+If you want to use other functions than just `mean()` or `sum()` for creating aggregate variables, you need to use the [`rowwise()` function from `dplyr`](https://dplyr.tidyverse.org/articles/rowwise.html) in combination with [`c_across()`](https://dplyr.tidyverse.org/reference/c_across.html) which is a special variant of the `dplyr` function `across()` for row-wise operations/aggregations.
+
+
+---
+
+## Outlook: Other variable types
+
+In the examples in this session, we almost exclusively worked with numeric variables. There are, however, other variable types that occur frequently in data sets in the social sciences:
+- factors
+- strings
+- time and dates
+
+---
+
+## Factors
+
+Factor are a special type of variable in `R` that represent categorical data. Before `R` version `4.0.0.` the default for `base R` was that all characters variables are imported as factors.
+
+Internally, factors are stored as integers, but they have (character) labels (so-called *levels*) associated with them. Hence, if you are not working with the special class of labelled data (e.g., via the packages [`haven`](https://haven.tidyverse.org/), [`labelled`](https://larmarange.github.io/labelled/index.html), or [`sjlabelled`](https://strengejacke.github.io/sjlabelled/index.html)), factors come closest to having variables with value labels as you might know from *SPSS*.
+
+Notably, as factors are a native data type to `R`, they do not cause the issues that labelled variables often do (as labels represent an additional attribute, making them a special class that many functions cannot work with).
+
+---
+
+## Factors
+
+Factors in `R` can be **unordered** - in which case they are similar to **nominal** level variables in *SPSS* - or **ordered** - in which case they are similar to **ordinal** level variables in *SPSS*.
+
+Using factors can be necessary for certain statistical analysis and plots (e.g., if you want to compare groups). Working with factors in `R` is a big topic, and we will only briefly touch upon it in this workshop. For a more in-depth discussion of factors in `R` you can, e.g., have a look at the [chapter on factors](https://r4ds.had.co.nz/factors.html) in *R for Data Science*.
+
+---
+
+## Factors 4 `r ji("cat")`s 
+
+There are many functions for working with factors in `base R`, such as `factor()` or `as.factor()`. However, a generally more versatile and easier-to-use option is the [`forcats` package](https://forcats.tidyverse.org/) from the `tidyverse`. 
+
+```{r forcats-hex, out.width = "25%", echo = F}
+knitr::include_graphics("https://forcats.tidyverse.org/logo.png")
+```
+
+*Note*: There is a good [introduction to working with factors using `forcats` by Vebash Naidoo](https://sciencificity-blog.netlify.app/posts/2021-01-30-control-your-factors-with-forcats/) and *RStudio* also offers a [`forcats` cheatsheet](https://raw.githubusercontent.com/rstudio/cheatsheets/master/factors.pdf).
+
+---
+
+## Unordered factor
+
+Previously, we have recoded the numeric values from the `sex` variable to character values. We could also create an unordered factor based on those values.
+
+Using the `recode_factor()` function (together with `mutate()`) from `dplyr`, we can create a factor from a numeric (or a character) variable. 
+
+```{r unordered-factor}
+tuesdata_ai_threat <- stackoverflow_survey_single_response  %>% 
+  dplyr::mutate(ai_threat_fac = dplyr::recode_factor(ai_threat,
+                                 `1` = "I'm not sure",
+                                 `2` = "No",
+                                 `3` = "Yes"))
+tuesdata_ai_threat %>% 
+  dplyr::select(ai_threat, ai_threat_fac) %>% 
+  dplyr::filter(!is.na(ai_threat)) %>% 
+  dplyr::sample_n(5)
+```
+
+
+---
+
+## Outlook: Working with strings in `R` 
+
+As stated before, we won't be able to cover the specifics of working with strings in `R` in this course. However, it may be good to know that the `tidyverse` package [`stringr`](https://stringr.tidyverse.org/index.html) offers a collection of convenient functions for working with strings.
+
+```{r stringr-hex, out.width = "25%", echo = F}
+knitr::include_graphics("https://stringr.tidyverse.org/logo.png")
+```
+
+The `stringr` package provides a good [introduction vignette](https://cran.r-project.org/web/packages/stringr/vignettes/stringr.html), the book *R for Data Science* has a whole section on [strings with `stringr`](https://r4ds.had.co.nz/strings.html), and there also is an [*RStudio* Cheat Sheet for `stringr`](https://github.com/rstudio/cheatsheets/raw/master/strings.pdf).
+
+---
+
+## Sidenote: Regular expressions
+
+If you want (or have) to work with [regular expressions](https://en.wikipedia.org/wiki/Regular_expression), there are several packages that can facilitate this process by allowing you to create regular expressions in in a (more) human-readable: e.g., [`rex`](https://github.com/r-lib/rex), [`RVerbalExpressions `](https://rverbalexpressions.netlify.app/index.html), or [`rebus` package](https://github.com/richierocks/rebus) which allows you to create regular expressions in R in a human-readable way. Another helpful tool is the *RStudio* addin [`RegExplain`](https://www.garrickadenbuie.com/project/regexplain/).  
+
+---
+
+## Outlook: Times and dates
+
+[Working with times and dates can be quite a pain in programming](https://www.youtube.com/watch?v=-5wpm-gesOY) (as well as data analysis). Luckily, there are a couple of neat options for working with times and dates in `R` that can reduce the headache.
+
+---
+
+## Outlook: Times and dates
+
+```{r excel-time, echo=FALSE, out.width="50%"}
+include_picture("./excel-time.jpg")
+```
+.small[
+Source: https://twitter.com/ExcelHumor/status/1558608440230117384
+]
+
+---
+
+## Outlook: Times and dates
+
+If you want/need to work with times and dates in `R`, you may want to look into the [`lubridate` package](https://lubridate.tidyverse.org/) which is part of the `tidyverse`, and for which *RStudio* also provides a [cheatsheet](https://raw.githubusercontent.com/rstudio/cheatsheets/master/lubridate.pdf).
+
+```{r lubridate-hex, out.width = "25%", echo = F}
+knitr::include_graphics("https://lubridate.tidyverse.org/logo.png")
+```
+
+*Note*: If you work with time series data, it is also worth checking out the [`tsibble` package](https://tsibble.tidyverts.org/) for your wrangling tasks.
+
+---
+
+## Extracurricular activities
+
+Check out the [appendix slides for today](https://stefanjuenger.github.io/r-intro-gesis-2022/slides/2_3_Appendix_Relational_Data.html) which cover the topic of relational data (i.e., combining multiple data sets).
+
+Have a look at the [*Tidy Tuesday* repository on *GitHub*](https://github.com/rfordatascience/tidytuesday), listen to a few of the very short episodes of the [*Tidy Tuesday* Podcast](https://www.tidytuesday.com/), check out the [#tidytuesday Twitter hashtag](https://twitter.com/hashtag/tidytuesday?lang=en), or watch one (or more) of the [*Tidy Tuesday* screencasts on *YouTube* by David Robinson](https://www.youtube.com/watch?v=E2amEz_upzU&list=PL19ev-r1GBwkuyiwnxoHTRC8TTqP8OEi8).

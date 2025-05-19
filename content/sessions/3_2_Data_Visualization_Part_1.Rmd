@@ -1,0 +1,1173 @@
+---
+title: "Data Literacy: Introduction to R "
+subtitle: "Data Visualization - Part 1"
+author: "Veronika Batzdorfer"
+date: "2024-11-22"
+presenter: Veronika
+editor_options: 
+  chunk_output_type: console
+---
+layout: true 
+
+```{r child = "./content/config/sessions_setup.Rmd"}
+```
+
+---
+
+## We'll start rather basic
+
+```{r trump, out.width = "85%", echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/trump.jpg?raw=true")
+```
+
+.footnote[https://twitter.com/katjaberlin/status/1290667772779913218]
+
+---
+
+
+## Content of the visualization sessions
+.pull-left[
+**`Base R` visualization**
+- Standard plotting procedures in R
+- very short
+]
+
+.pull-right[
+**`tidyverse`/`ggplot2` visualization**
+- Modern interface to graphics
+- grammar of graphics
+]
+
+There's more that we won't cover:
+- [`lattice`](https://cran.r-project.org/web/packages/lattice/index.html) plots, for example
+
+---
+
+### Data for this session
+
+```{r load_tuesdata, echo=TRUE}
+library(tidyverse)
+library(dplyr)
+
+stackoverflow_survey_questions <- read_csv("./data/stackoverflow_survey_questions.csv")
+stackoverflow_survey_single_response <- read_csv("./data/stackoverflow_survey_single_response.csv")
+qname_levels_single_response_crosswalk <- read_csv("./data/qname_levels_single_response_crosswalk.csv")
+
+df <- stackoverflow_survey_single_response %>%
+  rename(
+    response_id = response_id,
+    main_branch = main_branch,
+    age_group = age,
+    remote_work = remote_work,
+    education_level = ed_level,
+    years_coding = years_code,
+    years_pro_coding = years_code_pro,
+    dev_type = dev_type,
+    org_size = org_size,
+    purchase_influence = purchase_influence,
+    build_vs_buy = buildvs_buy,
+    visit_frequency = so_visit_freq,
+    has_account = so_account,
+    participation_frequency = so_part_freq,
+    community_belief = so_comm,
+    ai_usage = ai_select,
+    ai_sentiment = ai_sent,
+    ai_acc = ai_acc,
+    ai_complexity = ai_complex,
+    ai_threat = ai_threat,
+    survey_length = survey_length,
+    survey_ease = survey_ease,
+    yearly_compensation = converted_comp_yearly,
+    r_used = r_used,
+    r_want_to_use = r_want_to_use
+  )
+```
+
+---
+```{r cleaning-2}
+# Recode main_branch
+df <- df %>%
+  mutate(
+    main_branch = case_when(
+      main_branch == 1 ~ "Developer by profession",
+      main_branch == 2 ~ "Learning to code",
+      main_branch == 3 ~ "Not primarily a developer",
+      main_branch == 4 ~ "Hobbyist",
+      main_branch == 5 ~ "Former developer",
+      TRUE ~ as.character(main_branch)
+    )
+  )
+
+# Recode age_group
+df <- df %>%
+  mutate(
+    age_group = case_when(
+      age_group == 1 ~ "18-24",
+      age_group == 2 ~ "25-34",
+      age_group == 3 ~ "35-44",
+      age_group == 4 ~ "45-54",
+      age_group == 5 ~ "55-64",
+      age_group == 6 ~ "65+",
+      age_group == 7 ~ "Prefer not to say",
+      age_group == 8 ~ "Under 18",
+      TRUE ~ as.character(age_group)
+    )
+  )
+
+# Recode remote_work
+df <- df %>%
+  mutate(
+    remote_work = case_when(
+      remote_work == 1 ~ "Hybrid",
+      remote_work == 2 ~ "In-person",
+      remote_work == 3 ~ "Remote",
+      TRUE ~ as.character(remote_work)
+    )
+  )
+
+# Recode education_level
+df <- df %>%
+  mutate(
+    education_level = case_when(
+      education_level == 1 ~ "Associate degree",
+      education_level == 2 ~ "Bachelor’s degree",
+      education_level == 3 ~ "Master’s degree",
+      education_level == 4 ~ "Primary/elementary school",
+      education_level == 5 ~ "Professional degree",
+      education_level == 6 ~ "Secondary school",
+      education_level == 7 ~ "Some college",
+      education_level == 8 ~ "Other",
+      TRUE ~ as.character(education_level)
+    )
+  )
+
+# Recode so_visit_freq
+df <- df %>%
+  mutate(
+    visit_frequency = case_when(
+      visit_frequency == 1 ~ "A few times per month or weekly",
+      visit_frequency == 2 ~ "A few times per week",
+      visit_frequency == 3 ~ "Daily or almost daily",
+      visit_frequency == 4 ~ "Less than once per month or monthly",
+      visit_frequency == 5 ~ "Multiple times per day",
+      TRUE ~ as.character(visit_frequency)
+    )
+  )
+
+df <- df %>%
+  mutate(
+    ai_sentiment = case_when(
+      ai_sentiment == 1 ~ "Favorable",
+      ai_sentiment == 2 ~ "Indifferent",
+      ai_sentiment == 3 ~ "Unfavorable",
+      ai_sentiment == 4 ~ "Unsure",
+      ai_sentiment == 5 ~ "Very favorable",
+      ai_sentiment == 6 ~ "Very unfavorable",
+      TRUE ~ as.character(ai_sentiment)
+    )
+  )
+
+# Recode ai_threat
+df <- df %>%
+  mutate(
+    ai_threat = case_when(
+      ai_threat == 1 ~ "I'm not sure",
+      ai_threat == 2 ~ "No",
+      ai_threat == 3 ~ "Yes",
+      TRUE ~ as.character(ai_threat)
+    )
+  )
+
+# Recode ai_complex
+df <- df %>%
+  mutate(
+    ai_complexity = case_when(
+      ai_complexity == 1 ~ "Bad at complex tasks",
+      ai_complexity == 2 ~ "Good",
+      ai_complexity == 3 ~ "Neither ",
+      ai_complexity == 4 ~ "Very poor at complex tasks",
+      ai_complexity == 5 ~ "Very well at complex tasks",
+      TRUE ~ as.character(ai_complexity)
+    )
+  )
+
+# Recode ai_acc
+df <- df %>%
+  mutate(
+    ai_acc = case_when(
+      ai_acc == 1 ~ "Highly distrust",
+      ai_acc == 2 ~ "Highly trust",
+      ai_acc == 3 ~ "Neither trust nor distrust",
+      ai_acc == 4 ~ "Somewhat distrust",
+      ai_acc == 5 ~ "Somewhat trust",
+      TRUE ~ as.character(ai_acc)
+    )
+  )
+```
+
+
+
+
+---
+
+## Graphics in `R`
+
+The `graphics` package is already included for that.
+
+.pull-left[
+```{r graphics_barplot, eval = FALSE}
+
+main_branch_counts <- table(df$main_branch)
+
+# Adjust plot margins to ensure labels fit
+par(mar = c(8, 4, 4, 2))  # Increase bottom margin
+
+# Create the bar plot with smaller font size
+barplot(
+  main_branch_counts,
+  main = "Distribution of Main Branch (Skill Level)",
+  xlab = "",
+  ylab = "Count",
+  col = "darkgreen",
+  border = "black",
+  las = 2,           
+  cex.names = 0.8,   
+  cex.main = 0.9,    
+  cex.lab = 0.9,     
+  cex.axis = 0.8     
+)
+
+# Reset margins after the plot
+par(mar = c(5, 4, 4, 2))
+
+
+```
+]
+
+.pull-right[
+```{r ref.label = "graphics_barplot", echo = FALSE}
+```
+]
+
+---
+
+## Ok, but let's start from the beginning
+The most basic function to plot in R is `plot()`.
+
+.pull-left[
+```{r basic_plot, eval = FALSE}
+options(scipen = 999)
+plot(df$yearly_compensation)
+```
+]
+
+.pull-right[
+```{r ref.label = "basic_plot", echo = FALSE}
+```
+]
+
+---
+
+
+
+#### Adding to the plot: titles & labels
+
+.pull-left[
+```{r titles_labels, eval = FALSE}
+plot(
+  jitter(df$years_coding, 2), 
+  jitter(df$participation_frequency, 2),
+  pch = 1,
+  main = 
+    "Relationship Experience and Participation Frequency on SO",
+  xlab = 
+    "Year of Experience",
+  ylab = 
+    "SO Participation Frequency"
+)
+
+```
+]
+
+.pull-right[
+```{r ref.label = "titles_labels", echo = FALSE}
+```
+]
+
+
+---
+
+## Where to go from here with `base R` graphics?
+
+.pull-left[
+Using similar procedures, we can add more and more stuff to our plot or edit its elements:
+- regression lines
+- legends
+- annotations
+- colors
+- etc. 
+]
+
+.pull-right[
+We can also create different *plot types*, such as
+- histograms
+- barplots
+- boxplots
+- densities
+- pie charts
+- etc.
+]
+
+---
+
+## Example: A simple boxplot
+
+.pull-left[
+```{r boxplot, eval = FALSE}
+boxplot(
+  df$years_coding ~
+    df$participation_frequency         
+)
+```
+]
+
+.pull-right[
+```{r ref.label = "boxplot", echo = FALSE}
+```
+]
+
+
+
+
+---
+
+## The `par()` and `dev.off()` functions for plots
+`par()` stands for graphical parameters and is called before the actual plotting function. It prepares the graphics device in `R`. The most commonly used options are for "telling" the device that 2, 3, 4, or `x` plots have to be printed.
+
+We can, e.g., use `mfrow` for specifying how many rows (the first value in the vector) and columns (the second value in the vector) we aim to plot. 
+
+```{r eval = FALSE}
+par(mfrow = c(2, 2))
+```
+
+One caveat of using this function is that we actively have to turn off the device before generating another independent plot.
+
+```{r eval = FALSE}
+dev.off()
+```
+
+---
+
+## Exporting plots
+
+It's nice that `R` provides such pleasant plotting opportunities. However, to include them in our papers, we need to export them. As said in the beginning, numerous export formats are available in `R`.
+
+---
+
+## Exporting with *RStudio*
+
+```{r echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/saveGraphic.PNG?raw=true")
+```
+
+---
+
+## Saving plots via a command
+Alternatively, you can also export plots with the commands `png()`, `pdf()` or `jpeg()`, for example. For this purpose, you first have to wrap the plot call between one of those functions and a `dev.off()`call.
+
+```{r, eval = FALSE}
+png("Plot.png")
+hist(df$years_coding)
+dev.off()
+```
+
+```{r, eval = FALSE}
+pdf("Plot.pdf")
+hist(df$years_coding)
+dev.off()
+```
+
+```{r, eval = FALSE}
+jpeg("Plot.jpeg")
+hist(df$years_coding)
+dev.off()
+```
+
+
+---
+
+## A personal note on `base R` plotting
+
+
+But to be honest: I do not use all the other functions that often. The syntax is sometimes cumbersome with all the `par()`  or `dev.off()` calls, and manipulating parameters simply feels somewhat "outdated".
+
+In the following, we will turn towards more modern techniques using the `ggplot2` package. Yet, we still believe that it is worthwhile to become comfortable with `base R` plotting since `ggplot2`, e.g., may sometimes be "too much" for simple quick data exploration.
+
+**As so often, in the end, it's also a matter of taste.**
+
+---
+
+## What is `ggplot2`?
+`ggplot2` is another `R` package for creating plots and is part of the `tidyverse`.
+
+
+It uses the *grammar of graphics*. Some things to note about `ggplot2`:
+- it is well-suited for multi-dimensional data
+- it expects data (frames) as input
+- components of the plot are added as layers
+
+
+```{r plot call, eval = FALSE, echo = TRUE}
+plot_call +
+  layer_1 +
+  layer_2 +
+  ... +
+  layer_n
+```
+
+
+---
+## `ggplot2` examples 
+.pull-left[
+```{r radar fig, echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/143_radar_chart_multi_indiv_2.png?raw=true")
+```
+]
+
+.pull-right[
+```{r density fig, echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/21_ggplot2_ddensity_plot.png?raw=true")
+```
+]
+
+
+<small><small>Sources: https://www.r-graph-gallery.com/wp-content/uploads/2016/05/143_radar_chart_multi_indiv_2.png and https://www.r-graph-gallery.com/wp-content/uploads/2015/09/21_ggplot2_ddensity_plot.png</small></small>
+
+---
+
+## `ggplot2` examples 
+.pull-left[
+```{r scatter fig, echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/51_scatterplot_linear_model_with_CI_ggplot2.png?raw=true")
+```
+]
+
+.pull-right[
+```{r map fig, echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/328_Hexbin_map_USA_4.png?raw=true")
+```
+]
+
+<small><small>Sources: https://www.r-graph-gallery.com/wp-content/uploads/2015/11/51_scatterplot_linear_model_with_CI_ggplot2-300x300.png and https://www.r-graph-gallery.com/wp-content/uploads/2017/12/328_Hexbin_map_USA_4-300x200.png</small></small>
+
+---
+
+## Barplots as in `base R`
+
+.tinyish[
+.pull-left[
+```{r base_barplot, eval = FALSE}
+ggplot(df , aes(x = age_group)) + 
+  geom_bar()
+```
+]
+]
+
+.pull-right[
+```{r ref.label = "base_barplot", echo = FALSE}
+```
+]
+
+---
+
+## Boxplots as in `base R`
+
+.tinyish[
+.pull-left[
+```{r base_boxplot, eval = FALSE}
+ggplot(
+  df , 
+  aes(
+    x = as.factor(main_branch), 
+    y = years_coding )
+) + 
+  geom_boxplot()
+
+```
+]
+]
+
+.pull-right[
+```{r ref.label = "base_boxplot", echo = FALSE}
+```
+]
+
+---
+
+## Components of a plot
+According to Wickham (2010, 8)* a layered plot consists of the following components:
+
+<span class="footnote">
+<small><small><span class="red bold">*</span> http://dx.doi.org/10.1198/jcgs.2009.07098</small></small>
+</span>
+
+
+- data and aesthetic mappings,
+- geometric objects,
+- scales,
+- and facet specification
+
+
+```{r plot call example, eval = FALSE, echo = TRUE}
+plot_call +
+  data +
+  aesthetics +
+  geometries +
+  scales +
+  facets
+```
+
+---
+
+## Data requirements
+You can use one single data frame to create a plot in `ggplot2`. This creates a smooth workflow from data wrangling to the final presentation of the results.
+
+<br>
+
+```{r data_science_pic, out.width = "65%", echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/data-science_man.png?raw=true")
+```
+
+<small><small>Source: http://r4ds.had.co.nz</small></small>
+
+---
+
+## Why the long format? `r emo::ji("horse")`
+`ggplot2` prefers data in long format (**NB**: of course, only if this is possible and makes sense for the data set at hand)
+
+.pull-left[
+We may want to get used to it as this format has some benefits:
+- every element we aim to plot is an observation
+- no thinking required how a specific variable relates to an observation
+- most importantly, the long format is more parsimonious
+- it requires less memory and less disk space
+]
+
+.pull-right[
+```{r long_pic, out.width = "40%", echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/long.png?raw=true")
+```
+<small><small>Source: https://github.com/gadenbuie/tidyexplain#tidy-data</small></small>
+]
+
+
+---
+
+## Before we start
+The architecture of building plots in `ggplot` is similar to standard `R` graphics. There is an initial plotting call, and subsequently, more stuff is added to the plot. 
+
+However, in `base R`, it is sometimes tricky to find out how to add (or remove) certain plot elements. For example, think of removing the axis ticks in the scatter plot.
+
+We will systematically explore which elements are used in `ggplot` in this session.
+
+---
+
+## Creating your own plot
+We do not want to give a lecture on the theory behind data visualization (if you want that, we suggest having a look at the excellent book [*Fundamentals of Data Visualization*](https://serialmentor.com/dataviz/) by Claus O. Wilke).
+
+Creating plots is all about practice... and 'borrowing' code from others.
+
+Three components are important:
+- Plot initiation and data input
+- aesthetics definition
+- so-called geoms
+
+---
+
+## Plot initiation
+Now, let's start from the beginning and have a closer look at the *grammar of graphics*.
+
+.pull-left[
+`ggplot()` is the most basic command to create a plot:
+
+```{r ggplot_basic, eval = FALSE}
+ggplot()
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_basic", echo = FALSE}
+```
+]
+
+**But it doesn't show anything...**
+
+---
+
+## What now? Data input!
+
+.pull-left[
+```{r ggplot_data, eval = FALSE}
+ggplot(data = df )
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_data", echo = FALSE}
+```
+]
+
+**Still nothing there...**
+
+---
+
+## `aes`thetics! 
+
+.pull-left[
+`ggplot` requires information about the variables to plot.
+
+```{r ggplot_aes, eval = FALSE}
+ggplot(data = df ) +
+  aes(x = years_coding, y = yearly_compensation)
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_aes", echo = FALSE}
+```
+]
+
+**That's a little bit better, right?**
+
+---
+
+## `geom`s!
+.pull-left[
+Finally, `ggplot` needs information *how* to plot the variables.
+
+```{r ggplot_geom, eval = FALSE}
+ggplot(data = df ) +
+  aes(x = years_coding, y = yearly_compensation) +
+  geom_point()
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_geom", echo = FALSE}
+```
+]
+
+**A scatter plot!**
+
+---
+
+## Add a fancy `geom`
+.pull-left[
+We can also add more than one `geom`.
+
+```{r ggplot_line, eval = FALSE}
+ggplot(data = df) +
+  aes(x = years_coding, y = yearly_compensation) +
+  geom_jitter() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_line", echo = FALSE}
+```
+]
+
+
+**A regression line!** (without confidence intervals; the regression behind this operation is run automatically)
+
+
+---
+
+## Going further: adding group `aes`thetics
+
+.pull-left[
+We can add different colors for different groups in our data.
+
+```{r ggplot_group, eval = FALSE}
+df %>%
+  filter(!is.na(ai_threat)) %>%
+  ggplot(aes(
+    x = years_coding, 
+    y = participation_frequency, 
+    group = ai_threat
+  )) +
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_group", echo = FALSE}
+```
+]
+
+---
+
+## Manipulating group `aes`thetics
+
+.pull-left[
+We can also change the colors that are used in the plot.
+
+```{r ggplot_group_man, eval = FALSE}
+
+df %>%
+  filter(!is.na(ai_threat)) %>%
+ggplot(
+  aes(
+    x = years_coding, 
+    y = participation_frequency, 
+    group = ai_threat,
+    color = ai_threat)) +
+  geom_smooth(method = "lm", se = FALSE) 
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_group_man", echo = FALSE}
+```
+]
+
+The legend is drawn automatically, that's handy!
+
+---
+
+## Using another color palette
+
+.pull-left[
+```{r ggplot_group_dark2, eval = FALSE}
+df %>%
+  filter(!is.na(ai_threat)) %>%
+ggplot(
+  aes(
+    x = years_coding, 
+    y = participation_frequency, 
+    group = ai_threat,
+    color = ai_threat)) +
+  geom_smooth(method = "lm", se = FALSE)  +
+  scale_color_brewer(
+    palette = "Dark2"
+  ) 
+```
+]
+
+.pull-right[
+```{r ref.label = "ggplot_group_dark2", echo = FALSE}
+```
+]
+
+---
+
+## Difference between `color` and `fill`
+Notably, there are two components of the plot or `geom` associated with colors: `color` and `fill`.
+
+Generally, `color` refers to the geometry borders, such as a line. `fill` refers to a geometry area, such as a polygon.
+
+Have this difference in mind when you use `scale_color_brewer` or `scale_fill_brewer` in your plots. Manipulating these colors and their corresponding legends in an elaborate plot can get a little tricky. 
+
+---
+
+## Colors and `theme`s
+One particular strength of `ggplot2` lies in its immense theming capabilities. The package has some built-in theme functions that makes theming a plot fairly easy, e.g.,
+- `theme_bw()`
+- `theme_dark()`
+- `theme_void()`
+- etc.
+
+See: https://ggplot2.tidyverse.org/reference/ggtheme.html
+
+
+---
+
+## Alternative to being too colorful: facets
+.pull-left[
+```{r facet_wrap, eval = FALSE}
+
+df %>%
+  filter(!is.na(ai_threat)) %>%
+ggplot(
+  aes(
+    x = years_coding, 
+    y = participation_frequency)) +
+ geom_smooth(
+    color = "black", 
+    method = "lm", 
+    se = FALSE
+    ) +
+  facet_wrap(~ai_threat, ncol = 3) +
+  theme_light()
+
+```
+]
+
+.pull-right[
+```{r ref.label = "facet_wrap", echo = FALSE}
+```
+]
+
+---
+
+## The `theme()` argument in general
+The most direct interface for manipulating your theme is the `theme()` argument. Here you can change the appearance of:
+- axis labels
+- captions and titles
+- legend
+- grid layout
+- the wrapping strips
+- ...
+
+---
+
+## Example: changing the grid layout & axis labels
+.pull-left[
+```{r grid_layout, eval = FALSE}
+
+df %>%
+  filter(!is.na(ai_threat)) %>%
+ggplot(
+  aes(
+    x = years_coding, 
+    y = participation_frequency)) +
+ geom_smooth(
+    color = "black", 
+    method = "lm", 
+    se = FALSE
+    ) +
+  facet_wrap(~ai_threat, ncol = 3) +
+  theme_bw()+
+  theme(
+    panel.grid.major = 
+      element_blank(), 
+    panel.grid.minor = 
+      element_blank(),
+    strip.background = 
+      element_rect(fill = "white")
+  )
+```
+]
+
+.pull-right[ 
+```{r ref.label = "grid_layout", echo = FALSE}
+```
+]
+
+---
+
+## Example: changing axis labels
+.pull-left[
+```{r axis_labels-ggplot, eval = FALSE}
+
+df %>%
+  filter(!is.na(ai_threat)) %>%
+ggplot(
+  aes(
+    x = years_coding, 
+    y = participation_frequency)) +
+ geom_smooth(
+    color = "black", 
+    method = "lm", 
+    se = FALSE
+    ) +
+  facet_wrap(~ai_threat, ncol = 3) +
+  theme_bw()+
+  theme(
+    panel.grid.major = 
+      element_blank(), 
+    panel.grid.minor = 
+      element_blank(),
+    strip.background = 
+      element_rect(fill = "white")
+  ) +
+  ylab("Participation Frequency") +
+  xlab("Year of Coding Experience")
+```
+]
+
+.pull-right[
+```{r ref.label = "axis_labels-ggplot", echo = FALSE}
+```
+]
+
+---
+
+## A note on plotting options
+
+.pull-left[
+Working with combined aesthetics and different data inputs can become challenging.
+
+Particularly, plotting similar aesthetics which interfere with the automatic procedures can create conflicts.
+
+Some 'favorites' include:
+- Multiple legends
+- and various color scales for similar `geoms` 
+
+]
+
+.pull-right[
+```{r der_schrei, echo = FALSE}
+knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/content/img/800px-The_Scream.jpg?raw=true")
+```
+]
+
+.right[
+<small><small>Source: https://de.wikipedia.org/wiki/Der_Schrei#/media/File:The_Scream.jpg</small></small>
+]
+
+---
+
+## `ggplot` plots are 'simple' objects
+In contrast to standard `R` plots, `ggplot2` outputs are standard objects like any other object in `R` (they are lists). So there is no graphics device involved from which we have to record our plot to re-use it later. We can just use it directly.
+
+```{r eval = FALSE}
+my_fancy_plot <- 
+  ggplot(data = df,
+  aes(
+    x = years_coding, 
+    y = participation_frequency
+  )
+  ) + 
+  geom_point()
+
+my_fancy_plot <- 
+  my_fancy_plot +
+  geom_smooth()
+```
+
+Additionally, there is also no need to call `dev.off()`
+
+---
+
+## It makes combining plots easy
+As of today, there are now a lot of packages that help to combine `ggplot2`s fairly easily. For example, the [`cowplot` package](https://cran.r-project.org/web/packages/cowplot/index.html) provides a really flexible framework.
+
+Yet, fiddling with this package can become quite complicated. A very easy-to-use package for combining `ggplot`s is [`patchwork` package](https://cran.r-project.org/web/packages/patchwork/index.html).
+
+---
+
+## Plotting side by side in one row
+.pull-left[
+```{r one_row, eval = FALSE}
+library(patchwork)
+
+my_barplot <- 
+  ggplot(
+    df , 
+    aes(x = years_coding)
+  ) + 
+  geom_bar()
+
+my_boxplot <-  
+  ggplot(
+    df , 
+    aes(y = years_pro_coding)
+  ) + 
+  geom_boxplot()
+
+my_barplot | my_boxplot
+```
+]
+
+.pull-right[
+```{r ref.label = "one_row", echo = FALSE}
+```
+]
+
+---
+
+## Plotting in two columns
+.pull-left[
+```{r one_column, eval = FALSE}
+my_barplot / my_boxplot
+```
+]
+
+.pull-right[
+```{r ref.label = "one_column", echo = FALSE}
+```
+]
+
+---
+
+
+## There's more
+You can also annotate plots with titles, subtitles, captions, and tags.
+
+You can nest plots and introduce more complex layouts.
+
+If you're interested in this, you should check out the [`patchwork` repository on *GitHub*](https://github.com/thomasp85/patchwork) as everything is really well-documented there.
+
+---
+
+## Exporting ggplot graphics
+Exporting `ggplot2` graphics is fairly easy with the `ggsave()` function. It automatically detects the file format. You can also define the plot height, width, and dpi, which is particularly useful to produce high-class graphics for publications.
+
+```{r eval = FALSE}
+nice_plot <- 
+  ggplot(
+    df , 
+    aes(x = years_coding)
+  ) + 
+  geom_bar()
+
+ggsave("nice_plot.png", nice_plot, dpi = 300)
+```
+
+Or:
+
+```{r eval = FALSE}
+ggsave("nice_plot.tiff", nice_plot, dpi = 300)
+```
+
+---
+
+## Visual exploratory data analysis
+
+In the session on *Exploratory Data Analysis* (EDA), we have said that visualization should be part of EDA. We can use `ggplot2` for this, but there also are many packages out there that offer helpful visualization functions. We will look at two of those, `visdat` (for visualizing missing data patterns) and `GGAlly` (for visualizing correlations) in the following. Many of these packages build on `ggplot2` and their output can, hence, be further customized or extended using `ggplot2` or its extension packages.
+
+---
+
+## Plotting the structure of missing data
+
+.pull-left[
+```{r missing-plot, eval = FALSE}
+library(visdat)
+
+vis_miss(df [,18:23])
+```
+]
+
+.pull-right[
+```{r ref.label = "missing-plot", echo = FALSE}
+```
+]
+
+---
+
+## Fancier barplots: Relative frequencies
+
+.pull-left[
+```{r fancy_barplot_i, eval = FALSE}
+library(scales)
+
+df %>% 
+  ggplot(
+    aes(
+      x = age_group, 
+      fill = age_group
+    )
+  ) + 
+  geom_bar(
+    aes(
+      y = (..count..)/sum(..count..)
+    )
+  ) +
+  scale_y_continuous(
+    labels = percent
+  ) +
+  ylab("Relative Frequencies")+
+  theme_classic() +
+  theme(legend.position = "none")
+```
+]
+
+.pull-right[
+```{r ref.label = "fancy_barplot_i", echo = FALSE}
+```
+]
+
+---
+
+## Fancier barplots: Percentages & formatting
+
+.pull-left[
+```{r fancy_barplot_ii, eval = FALSE}
+
+df  %>% 
+  filter(!is.na(ai_complexity)) %>% 
+  ggplot(aes(x = ai_complexity, 
+             fill = ai_complexity)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.1))) +
+  ylab("Relative Frequencies") +
+  xlab("")+
+  theme_classic()+
+  theme(legend.position = "none")
+```
+]
+
+.pull-right[
+```{r ref.label = "fancy_barplot_ii", echo = FALSE}
+```
+]
+
+
+---
+
+
+## Correlation plots 
+
+.pull-left[
+```{r correlation-plot-ii, eval = FALSE}
+library(GGally)
+
+# Remove missing values
+df_clean <- df %>%
+  filter(!is.na(ai_sentiment) & !is.na(ai_acc) & !is.na(ai_complexity) & !is.na(ai_threat))
+
+# to factors
+df_clean <- df_clean %>%
+  mutate(
+    ai_sentiment = factor(ai_sentiment, levels = c("Very unfavorable", "Somewhat unfavorable", "Neutral", "Somewhat favorable", "Very favorable")),
+    ai_acc = factor(ai_acc, levels = c("Very distrustful", "Somewhat distrustful", "Neutral", "Somewhat trust", "Very trust")),
+    ai_complexity = factor(ai_complexity, levels = c("Bad at complex tasks", "Neutral", "Good at complex tasks")),
+    ai_threat = factor(ai_threat, levels = c("No", "Yes"))
+  )
+
+
+cor_matrix <- df_clean %>%
+  mutate_all(factor) %>%
+  mutate_all(~as.integer(factor(.))) %>%
+  cor(method = "spearman", use = "complete.obs")  # Complete case analysis
+
+
+print(cor_matrix)
+
+ggcorr(cor_matrix, label = TRUE, label_size = 2)
+
+
+```
+]
+
+.pull-right[
+```{r ref.label = "correlation-plot-ii", echo = FALSE}
+```
+]
+
+---
+
+## Some additional resources
+
+- [ggplot2 - Elegant Graphics for Data Analysis](https://www.springer.com/gp/book/9783319242750) by Hadley Wickham
+
+- [Chapter 3](https://r4ds.had.co.nz/data-visualisation.html) in *R for Data Science*
+
+- [Fundamentals of Data Visualization](https://serialmentor.com/dataviz/) by Claus O. Wilke
+
+- [Data Visualization - A Practical Introduction](https://press.princeton.edu/titles/13826.html) by Kieran Healy
+
+- [data-to-viz](https://www.data-to-viz.com/)
+
+- [R Graph Gallery](https://www.r-graph-gallery.com/)
+
+- [BBC Visual and Data Journalism cookbook for R graphics](https://bbc.github.io/rcookbook/#how_to_create_bbc_style_graphics)
+
+- [List of `ggplot2` extensions](https://exts.ggplot2.tidyverse.org/)
+
+
+

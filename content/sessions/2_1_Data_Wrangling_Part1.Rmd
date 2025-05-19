@@ -1,0 +1,792 @@
+---
+title: "Data Literacy: Introduction to R"
+subtitle: "Data Wrangling - Part 1"
+author: "Veronika Batzdorfer"
+date: "2022-11-20"
+presenter: Veronika
+---
+layout: true 
+
+```{r child = "content/config/sessions_setup.Rmd"}
+```
+
+---
+
+## Data wrangling 
+
+
+
+```{r, wrangling-cartoon, out.width = "95%", echo = F}
+woRkshoptools::include_picture("./wrangl.jpg")
+```
+
+
+
+The process of re-**shaping**, re-**formatting**, and re-**arranging** raw data for analysis
+---
+
+## Steps of data wrangling
+
+
+
+Steps when working with tabular data in the social & behavioral sciences (e.g., from surveys) include:
+
+- **selecting** a subset of variables
+- **renaming** variables
+- **relocating** variables
+- **filtering** a subset of cases
+
+
+- **recoding** variables/values
+- **missing values** recoding
+- **creating/computing** new variables
+
+--
+
+<small>The (in)famous **80/20-rule**: 80% wrangling, 20% analysis (of course, this ratio relates to the time required for writing the code, not the computing time).<small>
+
+---
+
+## The `tidyverse`
+
+
+> The `tidyverse` is a coherent system of packages for .highlight[data manipulation, exploration and visualization] that share a common design philosophy ([Rickert, 2017](https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/)).
+
+
+---
+
+## Benefits of the `tidyverse`
+
+Data wrangling can also be done with `base R`. However, the syntax for this is typically (more) verbose and not intuitive and, hence, difficult to learn, remember, and read (plus many `tidyverse` operations are faster than their base `R` equivalents).
+
+
+
+`Tidyverse` syntax is designed to increase
+
+- **human-readability** making it **attractive for `R` novices** as it can facilitate **self-efficacy** (see [Robinson, 2017](http://varianceexplained.org/r/teach-tidyverse/))
+- **consistency** (e.g., data frame as first argument and output) 
+- **smarter defaults** (e.g., no partial matching of data frame and column names).
+
+---
+
+## The 'dark side' of the `tidyverse`
+
+`tidyverse` is not `R` as in `base R`
+- some routines are like using a whole different language, which...
+  - ... can be nice when learning `R`
+  - ... can get difficult when searching for solutions to certain problems
+
+- Often, `tidyverse` functions are under heavy development
+  - they change and can potentially break your code
+    - E.g.: [Converting tables into long or wide format](https://tidyr.tidyverse.org/news/index.html#pivoting)<small>
+  
+To learn more about the `tidyverse` lifecycle you can watch this [talk by Hadley Wickham](https://www.youtube.com/watch?v=izFssYRsLZs) or read the corresponding [documentation](https://lifecycle.r-lib.org/articles/stages.html#deprecated)
+
+---
+
+## `Base R` vs. `tidyverse`
+
+Similar to other fierce academic debates over, e.g., `R` vs. `Python` or Frequentism vs. Bayesianism, people have argued [for](http://varianceexplained.org/r/teach-tidyverse/) and [against](https://blog.ephorie.de/why-i-dont-use-the-tidyverse) using/teaching the `tidyverse`.
+
+But what's unites both:
+
+
+```{r tidy-bf, out.width="60%", echo=FALSE}
+knitr::include_graphics("https://miro.medium.com/max/1280/0*ifjhcLyODu0nXjVx.jpg")
+```
+.center[
+<small><small>Source: https://bit.ly/3PmcL4t</small></small>
+]
+
+---
+
+## Data wrangling alternatives
+
+As with almost all tasks in `R`, there are more than two packages for data wrangling. Two alternatives (or additions) to `base R` and the `tidyverse` are:
+- [`data.table`](https://rdatatable.gitlab.io/data.table/index.html)
+- [`datawizard`](https://easystats.github.io/datawizard/)
+
+---
+
+## `data.table`
+
+The `data.table` package also is a powerful tool for data wrangling, especially if you work with large data sets. The reason we do not discuss `data.table` in this course is that neither of us has extensive experience with it, and comparing all three options (`base R`, `tidyverse`, and `data.table`) side-by-side would be enough for a separate workshop/course.
+
+There is, however, a very detailed [blog post by Jason Mercer](https://wetlandscapes.com/blog/a-comparison-of-r-dialects/) that compares the functionalities of `base R`, `tidyverse`, and `data.table` for data wrangling and [another one by Atreba](https://atrebas.github.io/post/2019-03-03-datatable-dplyr/) that focuses on a comparison between `data.table` and [`dplyr`](https://dplyr.tidyverse.org/) which is a key package for data manipulation from the `tidyverse`. 
+
+---
+
+# `datawizard` `r emo::ji("mage")`
+
+`datawizard` is a fairly new contender in the data wrangling game that also offers quite a few handy and easy to use functions. `datawizard` is part of the [`easystats` collection of `R` packages](https://easystats.github.io/easystats/) which offer many helpful functionalities for data preparation, analysis, and reporting, which can nicely extend or complement the `tidyverse`. We will discuss some of the `easystats` packages again in the sessions on exploratory and confirmatory data analysis.
+
+---
+
+## Structure & focus of this session
+
+- focus on differences between `base R` and the `tidyverse`
+
+- our main focus will be on the use of packages (and functions) from the `tidyverse` and how they can be used to clean and transform your data.
+
+Of course, it is possible to combine `base R` and `tidyverse` code. However, in the long run, you should try to aim for consistency.
+
+---
+
+## Lift-off into the `tidyverse` `r ji("rocket")`
+
+**Install all `tidyverse` packages** (for the full list of `tidyverse` packages see [https://www.tidyverse.org/packages/](https://www.tidyverse.org/packages/))
+```{r install-tidyverse, eval = F}
+install.packages("tidyverse")
+```
+**Load core `tidyverse` packages** (NB: To save time and reduce namespace conflicts you can also load `tidyverse` packages individually)
+```{r load-tidyverse, message = F}
+library("tidyverse") ##load the tidyverse package
+```
+
+---
+
+## `tidyverse` vocabulary 101
+
+While there is much more to the `tidyverse` than this, three important concepts that you need to be familiar with, if you want to use it, are:
+
+1. Tidy data
+
+2. Tibbles
+
+3. Pipes
+
+<small>(We already discussed tibbles in the session on *Data Import & Export*, so we will focus on tidy data and pipes here.)<small>
+
+---
+
+## Tidy data `r ji("cowboy_hat_face")`
+
+The 3 rules of tidy data:
+
+1. Each **variable** is in a separate **column**.
+
+2. Each **observation** is in a separate **row**.
+
+3. Each **value** is in a separate **cell**.
+
+
+```{r tidy-data, echo = FALSE}
+knitr::include_graphics("https://d33wubrfki0l68.cloudfront.net/6f1ddb544fc5c69a2478e444ab8112fb0eea23f8/91adc/images/tidy-1.png")
+```
+<small><small>Source: https://r4ds.had.co.nz/tidy-data.html</small></small>
+
+*Note*: In the `tidyverse` terminology 'tidy data' usually also means data in long format (where applicable).
+
+---
+
+## Wide vs. long format
+
+```{r wide-long-pic, echo = FALSE, out.width="45%"}
+knitr::include_graphics("https://raw.githubusercontent.com/gadenbuie/tidyexplain/main/images/static/png/original-dfs-tidy.png")
+```
+<small><small>Source: https://github.com/gadenbuie/tidyexplain#tidy-data</small></small>
+
+.small[
+*Note*: The functions `pivot_wider()` and `pivot_longer()` from the [`tidyr` package](https://tidyr.tidyverse.org/) are easy-to-use options from changing data from long to wide format and vice versa.
+]
+
+---
+
+
+## Pipes (%>% == and then)
+
+Usually, in `R` we apply functions as follows:
+
+```{r function-r, eval = FALSE}
+f(x)
+```
+
+In the logic of pipes this function is written as:
+
+```{r function-pipe, eval = FALSE}
+x %>% f(.)
+```
+
+Here, object `x` is piped into function `f`, becoming (by default) its first argument (but by using *.* it can also be fed into other arguments).
+
+--
+
+We can use pipes with more than one function:
+
+```{r function-pipe-2, eval = FALSE}
+x %>% 
+  f_1() %>% 
+  f_2() %>% 
+  f_3()
+```
+
+.small[
+More about pipes: https://r4ds.had.co.nz/pipes.html
+]
+
+---
+
+## Pipes
+
+- The `%>%` used in the `tidyverse` is part of the [`magrittr` package](https://magrittr.tidyverse.org/) which also includes other specialized types of pipes.
+
+- *RStudio* offers a keyboard shortcut for inserting **`%>%`**: <kbd>Ctrl + Shift + M</kbd> (*Windows* & *Linux*)/<kbd>Cmd + Shift + M</kbd> (*Mac*)
+
+- Since [version 4.1.0](https://cran.r-project.org/bin/windows/base/NEWS.R-4.1.0.html), `base R` also offers its own pipe `|>`, which is similar to but not the same as the `%>%` pipe.
+
+---
+
+## Data set
+
+We will use data from the [*Stack Overflow Annual Developer Survey 2024*](https://github.com/rfordatascience/tidytuesday/blob/master/data/2024/2024-09-03/readme.md).
+
+.highlight[Remember]: to code along/ for the exercises the *tuesdata* data file should be in a sub-folder called `data` in the same folder, as the other materials for this course.
+
+---
+## Note: Tidy vs. untidy data
+
+The *tuesdata* is already tidy.
+If you collect data yourself, the raw data may be `untidy`, e.g.:
+- cells may hold more than one value
+- a variable that should be in one column is spread across multiple columns (e.g., parts of a date or name).
+
+
+If you need to make your data tidy or change it from wide to long format or vice versa (which may, e.g., be necessary if you work with longitudinal survey data from multiple waves), the [`tidyr` package](https://tidyr.tidyverse.org/) from the `tidyverse` is a good option.
+
+---
+
+## Interlude 1: Citing FOSS
+
+You should also make sure to cite the free and open-source software that you use, such as `R` packages and `R` itself. There is a function in `R` that tells you how to cite it or any of the packages you have used (for this please see `sessionInfo()`).
+
+```{r citation}
+citation()
+```
+
+---
+
+## Interlude 3: Codebook
+
+It is always advisable to consult the codebook (if there is one) before starting to work with a data set. 
+
+Side note: If you want to (semi-)automatically generate a codebook for your own dataset, there are several options in `R`:
+
+- the [`codebook` package](https://rubenarslan.github.io/codebook/) which includes an *RStudio*-Addin and also offers a [web app](https://rubenarslan.ocpu.io/codebook/www/)
+
+- the `makeCodebook()` function from the [`dataReporter` package](https://github.com/ekstroem/dataReporter) (see this [blog post](http://sandsynligvis.dk/articles/18/codebook.html) for a short tutorial of the initial `dataMaid package`)
+
+---
+
+## Load the data
+
+The first step is loading the data into `R`.
+
+```{r load-tuesdata, eval=FALSE}
+## install.packages("tidytuesdayR")
+library(tidytuesdayR)
+
+tuesdata <- tidytuesdayR::tt_load('2024-09-03')
+
+
+qname_levels_single_response_crosswalk <- tuesdata$qname_levels_single_response_crosswalk
+
+stackoverflow_survey_questions <- tuesdata$stackoverflow_survey_questions
+
+stackoverflow_survey_single_response <- tuesdata$stackoverflow_survey_single_response
+
+```
+
+```{r load data from file}
+library(tidytuesdayR)
+stackoverflow_survey_questions <- read_csv("./data/stackoverflow_survey_questions.csv")
+
+stackoverflow_survey_single_response <- read_csv("./data/stackoverflow_survey_single_response.csv")
+
+qname_levels_single_response_crosswalk <- read_csv("./data/qname_levels_single_response_crosswalk.csv")
+
+
+```
+
+
+---
+
+
+## `dplyr`
+
+The `tidyverse` examples in the following will make use of [`dplyr` functions](https://dplyr.tidyverse.org/) that are **verbs** that signal an action (e.g. `group_by()`, `glimpse()`, `filter()`)
+Their structure is:
+1. The first argument is a data frame.
+2. The subsequent arguments describe what to do with the data frame.
+3. The result is a new data frame (tibble).
+
+  - **columns** (= variables in a tidy data frame) can be referenced without quotation marks (non-standard evaluation)
+  - **actions** (verbs) can be applied to columns (variables) and rows (cases/observations)
+
+
+
+
+---
+
+## First look `r ji("eyes")`
+
+The `dplyr` package provides a function for getting a first good look at your data, that is especially helpful when working with data sets that contain many columns/variables. The function `glimpse()` prints a data frame/tibble in a way that represents columns as rows and rows as columns and also provides some additional information about the data frame and its columns.
+
+```{r glimpse, eval=FALSE}
+stackoverflow_survey_single_response %>% 
+  glimpse()
+
+```
+
+.right[`r emo::ji("left_arrow_curving_right")`]
+
+---
+
+class: middle
+
+.tinyisher[
+```{r ref.label = "glimpse", echo = FALSE}
+```
+]
+
+---
+
+## Selecting variables
+
+We might want to reduce our data frame (or create a new one) to only include a **subset of specific variables**. E.g., select only the variables that measure attitudes towards *AI* (`ai_`) from our full data set. There are two options with `base R`:
+
+Option 1
+.small[
+```{r select-vars-base}
+tuesdata_ai <- stackoverflow_survey_single_response [, c("ai_select", "ai_sent", "ai_acc", "ai_complex", "ai_threat")]
+
+# When subsetting with [], the first value refers to rows, the second to columns
+# [, c("var1", "var2", ...)] means we want to select all rows but only some specific columns.
+```
+]
+
+Option 2
+.small[
+```{r subset}
+tuesdata_ai <- subset(stackoverflow_survey_single_response, TRUE, select = c(ai_select, ai_sent, ai_acc, ai_complex, ai_threat))
+
+# The 2nd argument refers to the rows.
+# Setting it to TRUE includes all rows in the subset.
+```
+]
+
+---
+
+## Selecting variables
+
+You can also select variables based on their numeric index.
+
+```{r subset-base-index}
+tuesdata_ai <- stackoverflow_survey_single_response[, 19:23]
+
+names(tuesdata_ai)
+```
+
+---
+
+## Selecting variables
+
+In the `tidyverse`, we can create a subset of variables with the `dplyr` verb `select()`.
+
+```{r select}
+tuesdata_ai <- stackoverflow_survey_single_response %>% 
+  dplyr::select(ai_select,
+         ai_sent,
+         ai_acc,
+         ai_complex,
+         ai_threat)
+
+head(tuesdata_ai)
+```
+
+---
+
+## Selecting a range of variables
+
+There also is a shorthand notation for selecting a set of consecutive columns with `select()`.
+
+```{r select-range}
+tuesdata_ai <- stackoverflow_survey_single_response %>% 
+  dplyr::select(ai_select:ai_threat)
+
+head(tuesdata_ai)
+```
+
+
+---
+
+## Selecting a range of variables
+
+Same as for `base R`, you can also use the numeric index of variables in combination with `select()` from `dplyr`.
+
+```{r select-index}
+tuesdata_ai <- stackoverflow_survey_single_response  %>% 
+  dplyr::select(19:23)
+
+names(tuesdata_ai)
+```
+
+---
+
+## Unselecting variables
+
+If you just want to exclude one or a few columns/variables, it is easier to unselect those than to select all others. Again, there's two ways to do this with `base R`.
+
+Option 1
+.small[
+```{r unselect-base}
+tuesdata_cut <- stackoverflow_survey_single_response [!(names(stackoverflow_survey_single_response ) %in% c("dev_type", "purchase_influence", "remote_work"))]
+# The ! operator means "not" (i.e., it negates a condition)
+# The %in% operator means "is included in" (in this case the following character vector)
+
+dim(tuesdata_cut)
+```
+]
+
+
+---
+
+## Unselecting variables
+
+You can also use `select()` from `dplyr` to exclude one or more columns/variables.
+
+```{r unselect}
+tuesdata_cut<- stackoverflow_survey_single_response%>% 
+  dplyr::select(-c(dev_type, purchase_influence, remote_work))
+
+dim(tuesdata_cut)
+```
+
+---
+
+## Advanced ways of selecting variables
+
+`dplyr` offers several helper functions for selecting variables. For a full list of those, you can check the [documentation for the `select()` function](https://dplyr.tidyverse.org/reference/select.html) or `?select()`.
+
+```{r select-helper}
+tuesdata_ai <- stackoverflow_survey_single_response %>% 
+  dplyr::select(starts_with("ai"))
+
+tuesdata_freq <-stackoverflow_survey_single_response %>% 
+  dplyr::select(ends_with("freq"))
+
+glimpse(tuesdata_freq)
+```
+
+---
+
+## Advanced ways of selecting variables
+
+Another particularly useful selection helper is `where()` to select only a specific type of variables.
+
+```{r where-num}
+tuesdata_num <- stackoverflow_survey_single_response %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  print()
+```
+
+---
+
+## What's in a name?
+
+One thing that we need to know - and might want to change - are the names of the variables in the dataset.
+
+```{r names-gpc}
+names(stackoverflow_survey_single_response)
+```
+
+---
+
+## Renaming variables
+
+It is good practice to use consistent naming conventions. Since `R` is .highlight[case-sensitive], we might want to only use lowercase letters.<br/> 
+As spaces in variable names can cause problems, we could, e.g., decide to use `r ji("snake")` *snake_case* (`r ji("camel")`<br/> <br/> 
+*camelCase* is a common alternative; for a good brief discussion of options for avoiding spaces in variable names, see this [Medium post by Patrick Divine](https://medium.com/@pddivine/string-case-styles-camel-pascal-snake-and-kebab-case-981407998841)).
+
+---
+
+# Become an ace of case
+
+```{r, case-cartoon, out.width = "80%", echo = F}
+knitr::include_graphics("https://github.com/allisonhorst/stats-illustrations/raw/main/other-stats-artwork/coding_cases.png")
+```
+<small><small>Artwork by [Allison Horst](https://github.com/allisonhorst/stats-illustrations) </small></small>
+
+---
+
+## Renaming variables
+
+You can rename individual columns/variables in `base R` as follows:
+
+```{r rename-base, eval=FALSE}
+colnames(stackoverflow_survey_single_response)[colnames(stackoverflow_survey_single_response) == "ai_sent"] <- "ai_workflow"
+```
+
+As for subsetting, you can also rename variables based on their numeric index.
+
+```{r base-rename-index, eval=FALSE}
+colnames(stackoverflow_survey_single_response)[20] <- "ai_workflow"
+```
+
+---
+
+## Renaming variables
+
+An easier to use and more versatile option for renaming columns/variables is the `dplyr` function `rename()`.
+
+```{r rename}
+tuesdata_rn <- stackoverflow_survey_single_response %>% 
+ dplyr:: rename(ai_workflow = ai_sent, # new_name = old_name
+         comm_member = so_comm,
+         post_freq = so_part_freq 
+         )
+
+
+names(tuesdata_rn)
+```
+
+---
+
+## Renaming variables
+
+For some more advanced renaming options, you can use the `dplyr` function `rename_with()`.
+
+*Note*: The [`janitor` package](https://sfirke.github.io/janitor/) (which is `tidyverse`-oriented) can be used to facilitate several common data cleaning tasks. Among other things, it contains the function `clean_names()` that takes a data frame and creates column names that "are unique and consist only of the _ character, numbers, and letters" (from the help file for this function), with the default being `r ji("snake")` snake_case (but support for many other types of cases).
+
+```{r rename-with}
+stackoverflow_survey_single_response %>% 
+  dplyr::rename_with(toupper) %>% 
+  names()
+```
+
+ 
+
+---
+
+## Renaming variables
+
+We can use `rename_with()` in combination with `gsub()` (which we've already encountered in the session on *Getting Started*) to remove (or change) prefixes in variable names.
+
+```{r rename-with-prefix}
+stackoverflow_survey_single_response %>% 
+  dplyr::select(ai_select:ai_threat) %>% 
+  dplyr::rename_with(~ gsub("ai", "ai_attid", .x,
+                     fixed = TRUE)) %>% 
+  names()
+```
+
+---
+
+## Re~~wind~~name selecta
+
+A nice thing about the `dplyr` verb `select` is that you can use it to select and rename variables in one step.
+
+.small[
+```{r select-rename}
+tuesdata_ai <- stackoverflow_survey_single_response  %>% 
+  dplyr::select(ai_workflow = ai_sent, # new_name = old_name
+         comm_member = so_comm,
+         post_freq = so_part_freq )
+
+head(tuesdata_ai)
+```
+]
+
+
+---
+class: center, middle
+
+# [Exercise](https://rawcdn.githack.com/nika-akin/r-intro/9d05476f895e390df08662eecbefd4137f67acf4/exercises/Exercise_2_1_1_Selecting_Renaming_Steps.html) time `r ji("weight_lifting_woman")``r ji("muscle")``r ji("running_man")``r ji("biking_man")`
+
+## [Solutions](https://rawcdn.githack.com/nika-akin/r-intro/9d05476f895e390df08662eecbefd4137f67acf4/solutions/Exercise_2_1_1_Selecting_Renaming_Steps.html)
+
+
+---
+
+## Filtering rows
+
+In `R`, you can filter rows/observations dependent on one or more conditions.
+
+To filter rows/observations you can use... 
+- **comparison operators**:
+    - **<** (smaller than)
+    - **<=** (smaller than or equal to)
+    - **==** (equal to)
+    - **!=** (not equal to)
+    - **>=** (larger than or equal to)
+    - **>** (larger than)
+    - **%in%** (included in)
+
+---
+
+## Filtering rows
+
+... and combine comparisons with
+- **logical operators**:
+    - **&** (and)
+    - **|** (or)
+    - **!** (not)
+    - **xor** (either or, not both)
+
+---
+
+## Filtering rows
+
+Similar to selecting columns/variables, there are two options for filtering rows/observations with `base R`.
+
+Option 1
+```{r filter-base}
+tuesdata_age <-stackoverflow_survey_single_response [which(stackoverflow_survey_single_response $age == 1), ] #18-24
+
+dim(tuesdata_age)
+```
+
+Option 2
+```{r filter-subset}
+tuesdata_age <- subset(stackoverflow_survey_single_response , age == 1)
+
+dim(tuesdata_age)
+```
+
+---
+
+## Filtering rows
+
+The `dplyr` solution for filtering rows/observations is the verb `filter()`.
+
+```{r dplyr-filter-1}
+tuesdata_age <- stackoverflow_survey_single_response  %>% 
+  dplyr::filter(age == 1)
+
+dim(tuesdata_age)
+```
+
+---
+
+## Filtering rows based on multiple conditions
+
+```{r filter-2-cond}
+tuesdata_filter <- stackoverflow_survey_single_response %>% 
+  dplyr::filter(org_size > 1, so_visit_freq > 2, main_branch !=1)
+
+dim(tuesdata_filter)
+```
+
+---
+
+## `dplyr::filter()`
+
+```{r, filter-cartoon, out.width = "95%", echo = F}
+knitr::include_graphics("https://github.com/allisonhorst/stats-illustrations/raw/main/rstats-artwork/dplyr_filter.jpg")
+```
+<small><small>Illustration by [Allison Horst](https://github.com/allisonhorst/stats-illustrations) </small></small>
+
+---
+
+## `dplyr::filter` - multiple conditions
+
+By default, multiple conditions in `filter()` are added as *&* (and). You can, however, also specify multiple conditions differently.
+
+**or** (cases for which at least one of the conditions is true)
+
+```{r filter-or}
+tuesdata_developer <- stackoverflow_survey_single_response %>% 
+  dplyr::filter(main_branch == 1 | #developer
+           age > 1)
+
+dim(tuesdata_developer)
+```
+
+---
+
+## `dplyr::filter` - multiple conditions
+
+**xor** (cases for which only one of the two conditions is true)
+
+```{r filter-xor}
+tuesdata_developer_or_age <- stackoverflow_survey_single_response %>%
+  dplyr::filter(xor(main_branch == 1, 
+             age > 1))
+
+dim(tuesdata_developer_or_age)
+```
+
+---
+
+## Advanced ways of filtering rows
+
+Similar to `select()` there are some helper functions for `filter()` for advanced filtering of rows. For example, you can...
+
+ - Filter rows based on a range in a numeric variable
+
+```{r between}
+tuesdata_frequent_user <- stackoverflow_survey_single_response %>% 
+    dplyr::filter(dplyr::between(so_visit_freq, 2, 3))
+
+dim(tuesdata_frequent_user)
+```
+
+*Note*: The range specified in `between()` is inclusive (on both sides).
+
+---
+
+## Advanced ways of filtering rows
+
+- Filter rows based on the values of specific variables matching certain criteria
+
+```{r if-all}
+tuesdata_high_engagement  <- stackoverflow_survey_single_response %>% 
+  dplyr::filter(dplyr::if_all(dplyr::starts_with ("s0"), ~ . >=5)) # read: if the values of variables starting with pt in this df are >= 5 (indicating high engagement)
+
+dim(tuesdata_high_engagement)
+```
+
+*Note*: The helper function `if_any()` can be used to specify that at least one of the variables needs to match a certain criterion.
+
+---
+
+## Selecting columns + filtering rows
+
+The `tidyverse` approach solution for combining the selection of columns and the filtering of rows is chaining these steps together in a pipe (the order of the pipe steps does not matter).
+
+```{r dplyr-select-filter}
+tuesdata_freq_ai  <- stackoverflow_survey_single_response %>% 
+  dplyr::filter(so_part_freq == 1) %>% 
+  dplyr::select(ai_select:ai_threat)
+
+dim(tuesdata_freq_ai)
+```
+
+---
+
+## (Re-)Arranging the order of rows
+
+The `dplyr` verb for changing the order of rows in a data set is `arrange()` and you can use it in the same ways as the `base R` equivalent: Sorting by a single variable in ascending order, ...
+
+```{r arrange}
+stackoverflow_survey_single_response %>% 
+  dplyr::arrange(age) %>% 
+  dplyr::select(19:23) %>% 
+  glimpse()
+```
+
+---
+
+## (Re-)Arranging the order of rows
+
+... sorting by a single variable in descending order, ...
+
+```{r arrange-desc}
+stackoverflow_survey_single_response %>% 
+ dplyr:: arrange(desc(age)) %>% 
+  dplyr::select(19:23) %>% 
+  glimpse()
+```
+
+
+
+

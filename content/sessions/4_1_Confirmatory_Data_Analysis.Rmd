@@ -1,0 +1,726 @@
+---
+title: "Data Literacty: Introduction to R "
+subtitle: "Confirmatory Data Analysis"
+author: "Veronika Batzdorfer"
+date: "2024-11-22"
+presenter: Veronika
+editor_options: 
+  chunk_output_type: console
+---
+layout: true 
+
+```{r child = "./content/config/sessions_setup.Rmd"}
+```
+
+
+---
+
+## Content of this session
+.pull-left[
+**What we will cover**
+- Using (more or less) simple regression models
+
+- OLS, GLM, and the like
+
+- How to re-use the results of these models
+
+- How to feed these results into tables
+]
+
+.pull-right[
+**What we won't cover**
+- Theory (and history) of hypothesis testing
+
+- Crazy complex models with elaborated estimators
+- e.g., no multilevel models
+- also no clustered standard errors
+
+- Bayesian statistics
+]
+
+---
+
+### Data 
+
+```{r load-data}
+library(tidyverse)
+
+stackoverflow_survey_questions <- read_csv("./data/stackoverflow_survey_questions.csv")
+stackoverflow_survey_single_response <- read_csv("./data/stackoverflow_survey_single_response.csv")
+qname_levels_single_response_crosswalk <- read_csv("./data/qname_levels_single_response_crosswalk.csv")
+
+df <- stackoverflow_survey_single_response %>%
+  rename(
+    main_branch = main_branch,
+    age_group = age,
+    remote_work = remote_work,
+    education_level = ed_level,
+    years_coding = years_code,
+    years_pro_coding = years_code_pro,
+    purchase_influence = purchase_influence,
+    build_vs_buy = buildvs_buy,
+    visit_frequency = so_visit_freq,
+    has_account = so_account,
+    participation_frequency = so_part_freq,
+    community_belief = so_comm,
+    ai_usage = ai_select,
+    ai_sentiment = ai_sent,
+    ai_complexity = ai_complex,
+    survey_ease = survey_ease,
+    yearly_compensation = converted_comp_yearly,
+  )
+
+df <- df %>% 
+  mutate(ai_trust = rowMeans(across(ai_sentiment:ai_acc, ~as.numeric(.x))))
+
+```
+
+
+---
+
+```{rpreoproce_cfa}
+
+
+df <- df %>%
+  mutate(
+    main_branch = case_when(
+      main_branch == 1 ~ "Developer by profession",
+      main_branch == 2 ~ "Learning to code",
+      main_branch == 3 ~ "Not primarily a developer",
+      main_branch == 4 ~ "Hobbyist",
+      main_branch == 5 ~ "Former developer",
+      TRUE ~ as.character(main_branch)
+    )
+  )
+
+df <- df %>%
+  mutate(
+    age_group = case_when(
+      age_group == 1 ~ "18-24",
+      age_group == 2 ~ "25-34",
+      age_group == 3 ~ "35-44",
+      age_group == 4 ~ "45-54",
+      age_group == 5 ~ "55-64",
+      age_group == 6 ~ "65+",
+      age_group == 7 ~ "Prefer not to say",
+      age_group == 8 ~ "Under 18",
+      TRUE ~ as.character(age_group)
+    )
+  )
+
+# Recode remote_work
+df <- df %>%
+  mutate(
+    remote_work = case_when(
+      remote_work == 1 ~ "Hybrid",
+      remote_work == 2 ~ "In-person",
+      remote_work == 3 ~ "Remote",
+      TRUE ~ as.character(remote_work)
+    )
+  )
+
+# Recode education_level
+df <- df %>%
+  mutate(
+    education_level = case_when(
+      education_level == 1 ~ "Associate degree",
+      education_level == 2 ~ "Bachelor’s degree",
+      education_level == 3 ~ "Master’s degree",
+      education_level == 4 ~ "Primary/elementary school",
+      education_level == 5 ~ "Professional degree",
+      education_level == 6 ~ "Secondary school",
+      education_level == 7 ~ "Some college",
+      education_level == 8 ~ "Other",
+      TRUE ~ as.character(education_level)
+    )
+  )
+
+# Recode so_visit_freq
+df <- df %>%
+  mutate(
+    visit_frequency = case_when(
+      visit_frequency == 1 ~ "A few times per month or weekly",
+      visit_frequency == 2 ~ "A few times per week",
+      visit_frequency == 3 ~ "Daily or almost daily",
+      visit_frequency == 4 ~ "Less than once per month or monthly",
+      visit_frequency == 5 ~ "Multiple times per day",
+      TRUE ~ as.character(visit_frequency)
+    )
+  )
+
+
+
+# Recode ai_threat
+df <- df %>%
+  mutate(
+    ai_threat = case_when(
+      ai_threat == 1 ~ "I'm not sure",
+      ai_threat == 2 ~ "No",
+      ai_threat == 3 ~ "Yes",
+      TRUE ~ as.character(ai_threat)
+    )
+  )
+
+# Recode ai_complex
+df <- df %>%
+  mutate(
+    ai_complexity = case_when(
+      ai_complexity == 1 ~ "Bad at complex tasks",
+      ai_complexity == 2 ~ "Good",
+      ai_complexity == 3 ~ "Neither ",
+      ai_complexity == 4 ~ "Very poor at complex tasks",
+      ai_complexity == 5 ~ "Very well at complex tasks",
+      TRUE ~ as.character(ai_complexity)
+    )
+  )
+
+
+
+
+df <- df %>% 
+  filter(!is.na(ai_threat))
+
+
+df$ai_threat <- as.factor(df$ai_threat)
+df$age_group <- as.factor(df$age_group)
+
+df <- df %>%
+  mutate(ai_threat = ifelse(ai_threat %in% c("Yes", "I'm not sure"), 1, 0))
+
+
+```
+
+
+---
+
+## `R` is rich in statistical procedures
+
+Generally, if you seek to use a specific statistical method in `R`, chances are quite high that you can easily do that. As we've said before: There's ~~an app~~ a package for that. After all, `R` is a statistical programming language that was originally developed by statisticians.
+
+---
+
+## Formulas in statistical software
+
+Before we start analyzing data, we should make ourselves familiar with some more terminology in `R`. As in other statistical languages, e.g., regression models require the definition of dependent and independent variables. For example, in *Stata* you would write:
+
+```{r eval = FALSE}
+y x1 x2 x3
+```
+
+*SPSS* is more literate by requiring you to state what your dependent variables are with the `/DEPENDENT` parameter.
+
+---
+
+## `R` is straightforward and literate
+
+`R` combines the best of two worlds: It is straightforward to write formulas and it is quite literate regarding what role a specific element of a formula plays.
+
+```{r eval = FALSE}
+y ~ x1 + x2 + x3
+```
+
+*Note*: Formulas represent a specific object class in `R`.
+
+```{r}
+class(y ~ x1 + x2 + x3)
+```
+
+---
+
+## Denoting the left-hand side with `~`
+
+In `R`, stating what your dependent variable is very similar to common mathematical notation:
+
+$$y \sim N(\theta, \epsilon)$$
+
+It states that a specific relationship is actually _estimated_, but we, fortunately, don't have to specify errors here.
+
+```{r eval = FALSE}
+y ~ x1 + x2 + x3
+```
+
+Yet, sometimes it may be a good idea to at least explicitly specify the intercept as here:
+
+```{r eval = FALSE}
+y ~ 1 + x1 + x2 + x3
+```
+
+---
+
+## Intercept
+
+We can also estimate models without an intercept:
+
+```{r eval = FALSE}
+y ~ x1 + x2 + x3 - 1
+```
+
+Or intercept-only models as well:
+
+```{r eval = FALSE}
+y ~ 1
+```
+
+---
+
+## Adding predictors with `+`
+You can add as many predictors/covariates as you want with the simple `+` operator. See:
+
+```{r eval = FALSE}
+y ~ 1 + x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 +
+  x13 + x14 + x15 + x16 + x17 + x18 + x19 + x20 + x21 + x22 + x23 + x24
+```
+
+There's also a shortcut for using all (remaining) variables in a data set as predictors:
+
+```{r eval = FALSE}
+y ~ .
+```
+
+---
+
+## Interaction effects with `*` and `:`
+
+We can also easily add interaction effects to a model. As this is the same as multiplying predictor variables, we also use the `*` sign for that.
+
+```{r eval = FALSE}
+y ~ x1 * x2
+```
+
+The code above creates a model formula that includes both the main effects of `x1` and `x2`, and their interaction denoted by `x1:x2`. We can even be more explicit and write that into the formula directly:
+
+```{r eval = FALSE}
+y ~ x1 + x2 + x1:x2
+```
+
+
+---
+
+## Transforming variables within a formula
+
+One last point before we dive into doing some actual analysis is transforming variables. This procedure is rather common in regression analysis. It is also straightforward to do in `R`. For simple transformations this can be done as follows:
+
+```{r eval = FALSE}
+y ~ log(x)   # computes the log10 for x
+y ~ scale(x) # z-transformation of x
+```
+
+We could also change the data type of variables within a function, e.g., by converting a numeric variable to a factor using `as.factor(x)`. 
+
+---
+
+## Transforming variables within a formula
+
+If you cannot use a specific function for your tansformation, you have to wrap the operation in the `I()` function. For example:
+
+```{r eval = FALSE}
+y ~ x + I(x^2) # add a quadratic term of x
+```
+
+*Note*: Of course, there are also functions in `R` for transforming variables (e.g., standardizing or centering) before we use them in a formula. Besides the `base R` function `scale()` the [`datawizard package`](https://easystats.github.io/datawizard/), e.g., provides a few functions for that.
+
+---
+
+## Where to use formulas?
+
+The previous descriptions mainly refer to formulas used in regression models in `R`. However, formulas are also used in other hypothesis testing methods that distinguish between dependent and variables, such as t-tests or ANOVA. We will try out some of those in the following...
+
+---
+
+## Testing group differences in the distribution
+
+A very common methods for analyzing group differences are t-tests. You can use the `t.test()` function from `base R` function to easily perform such a test. 
+
+```{r t-test, eval=FALSE}
+df_filtered <- df %>% filter(age_group %in% c("18-24", "35-44"))
+
+t.test(ai_threat ~ age_group, data = df_filtered)
+
+```
+
+.small[
+*Note*: By default, `R` uses [Welch's t-test](https://en.wikipedia.org/wiki/Welch%27s_t-test) (instead of [Student's t-test](https://en.wikipedia.org/wiki/Student%27s_t-test)) which does not assume homogeneity of variance across groups.
+]
+
+---
+
+## Test of normality
+
+What if our data are not normally distributed in the first place, thus, violating one of the basic assumptions of performing t-tests? To check this, we can use a [Shapiro-Wilk](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test) test of normality.
+
+```{r swt, eval=FALSE}
+shapiro.test(df$ai_trust)
+```
+
+---
+
+## Wilcoxon/Mann-Whitney test
+
+If the data are not normally distributed, the [Wilcoxon/Mann-Whitney](https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test) test can be a suitable alternative.
+
+```{r wilcox, eval=FALSE}
+wilcox.test(ai_trust ~ ai_threat, data = df)
+```
+
+---
+
+## Testing multiple groups with an ANOVA
+
+There are situations in which we want to test differences across multiple groups. The classic method to use for this is an analysis of variance (ANOVA) and its many variants (ANCOVA, MANOVA, etc.). Again, you can easily do that in `R` using the `aov()` function.
+
+```{r anova}
+anova <- aov(ai_trust ~ age_group, data = df)
+
+anova
+```
+
+---
+
+## Testing multiple groups with an ANOVA
+
+To get some more detailed information, you need to use the `summary()` function we have already seen in the EDA session on the resulting `anova` object.
+
+```{r anova-summary}
+summary(anova)
+```
+
+---
+
+## Post-hoc test
+
+Unfortunately, the previous output only indicates that there are statistically significant differences in the groups. To find out which groups differ from each other we can, for example, compute *Tukey Honest Significant Differences*.
+
+```{r tukey, eval=FALSE}
+TukeyHSD(anova)
+```
+
+
+---
+
+## Simple linear regressions
+
+This may not come as a surprise at this point, but regression models are also easy to perform in `R`. The function for this is `lm()`. 
+
+```{r linmodel, eval = FALSE}
+simple_linear_model <- 
+  lm(
+    ai_trust ~ main_branch + participation_frequency +years_coding, 
+    data = df
+  )
+
+simple_linear_model
+```
+
+.right[`r emo::ji("left_arrow_curving_right")`]
+
+---
+
+class: middle 
+.small[
+```{r ref.label = "linmodel", echo = FALSE}
+```
+]
+
+---
+
+## Simple linear regressions
+
+As for the ANOVA, we can get some more detailed (and nicely formatted) output using the well-known `summary()` function.
+
+```{r summary-lm, eval = FALSE}
+summary(simple_linear_model)
+```
+
+.right[`r emo::ji("left_arrow_curving_right")`]
+
+---
+
+class: middle
+.small[
+```{r ref.label = "summary-lm", echo = FALSE}
+```
+]
+
+---
+
+## Checking regression assumptions
+
+As in the case of ANOVA, we do not cover the topic of testing regression assumptions in this session. Of course, when you do some actual analyses, you should definitely do that. But if you want more information about this issue, there are plenty of good tutorials online (such as [this blog post by Ian Ruginski](https://www.ianruginski.com/post/regressionassumptions/) or [this chapter](https://bookdown.org/jimr1603/Intermediate_R_-_R_for_Survey_Analysis/testing-regression-assumptions.html) in the online book [*R for Survey Analysis*](https://bookdown.org/jimr1603/Intermediate_R_-_R_for_Survey_Analysis/)).
+
+---
+
+## Dummy coding of categorical predictors
+
+As you have seen, `R` automatically converts factors in a regression model to dummy-coded variables, with the reference being the first value level. Hence, there is no need to create several variables with dummy codes and add them one by one to the regression formula. 
+
+You can inspect the contrast matrix using:
+
+.pull-left[
+```{r contrast-matrix, eval = FALSE}
+contrasts(df$age_group)
+```
+]
+
+.pull-right[
+```{r ref.label = "contrast-matrix", echo = FALSE, eval=FALSE}
+```
+]
+
+
+---
+
+## Generalized linear regression
+
+What we have seen so far are estimates for linear OLS regression models. A standard `R` installation provides a multitude of other estimators/link functions, so-called family objects, e.g., binomial logistic or Poisson regression models through the `glm()` function. See `?family` for an overview.
+
+Let's look at the the example of logistic regression. For this  purpose, say we are interested in the effect of the binary indicator of ai threat on all the other variables.
+
+```{r table-trust}
+table(df$ai_threat)
+```
+
+---
+
+## Logistic regression
+
+```{r log-reg, eval =FALSE}
+
+simple_model_logistic <- 
+  glm(
+    ai_threat ~ participation_frequency  + years_coding , 
+    family = binomial(link = "logit"),
+    data = df
+  )
+
+summary(simple_model_logistic)
+```
+
+.right[`r emo::ji("left_arrow_curving_right")`]
+
+---
+
+class: middle
+.small[
+```{r ref.label = "log-reg", echo = FALSE, eval=FALSE}
+
+```
+]
+
+---
+
+## Assessing model quality
+
+The [`performance` package](https://easystats.github.io/performance/) that is that is part of the [`easystats` collection of packages](https://easystats.github.io/easystats/) offers some functions for assessing model quality, including different types of R². A commonly used metric for logistic regression models, e.g., is Nagelkerke's R².
+
+
+*Note*: The `performance` package also includes several helpful functions for model diagnostics.
+
+---
+
+## Changing the link function
+
+For the fun of it, let's change the link function in our regression model from logit to probit.
+
+```{r probit-reg, eval = FALSE}
+simple_model_probit <- 
+  glm(
+     ai_threat ~ participation_frequency  + years_coding , 
+    family = binomial(link = "probit"),
+    data = df
+  )
+
+summary(simple_model_probit)
+```
+
+.right[`r emo::ji("left_arrow_curving_right")`]
+
+---
+
+class:middle
+.small[
+```{r ref.label = "probit-reg", echo = FALSE, eval=FALSE}
+```
+]
+
+---
+
+## Comparing models with an ANOVA
+
+We can also compare models with some standard tools. For example, to examine competing models, such as our logistic and probit regression, we can apply an ANOVA.
+
+```{r anova-glm-compare, eval=FALSE}
+anova(simple_model_logistic, simple_model_probit)
+```
+
+---
+
+## Comparing model performance
+
+The `performance` package we have previously used for calculating Nagelkerke's R² for our logistic regression model also provides a handy function for comparing model performance.
+
+
+---
+
+## Other regression variants
+
+While `glm()` already provides quite a few estimators and link functions, depending on the distribution of your dependent variable, you may need more specialized regression models. A few interesting options for that, e.g, include are the [`MASS` package](https://cran.r-project.org/web/packages/MASS/index.html) for negative binomial regression, the [`pscl` package](https://cran.r-project.org/web/packages/pscl/index.html) for zero-inflated (negative) binomial regression and hurdle models, or the [`mcp` package](https://lindeloev.github.io/mcp/) for regression with multiple change points.
+
+
+---
+
+## Handling regression results
+
+While it is (still) common practice to run regressions, search for 'significant' p-values, and paste the results into a table without interpreting them substantially, this may not be the best thing to do.
+
+---
+
+## Accessing model results in `base R`
+
+Regression results are a specific type/class of objects in `R`. You can use the `str()` function to get an overview of the whole structure of the object (it's a list of different information). For starters, we may want to see what the first level of this list may provide by asking for the names of the included pieces of information:
+
+```{r names-lm}
+names(simple_linear_model)
+```
+
+---
+
+## Accessing coefficients
+
+We can access the coefficients from our model as follows:
+
+```{r coef-lm}
+simple_linear_model$coefficients
+```
+
+---
+
+## Accessing standard errors
+
+`lm` objects are a little bit cumbersome to use as the information is deeply nested within the object. If you want to extract the standard errors, e.g., you can do so as follows:
+
+```{r se-lm}
+summary(simple_linear_model)$coefficients[,2]
+```
+
+---
+
+## Accessing confidence intervals
+
+The standard `summary()` doesn't supply confidence intervals. We can use the `confint()` command to produce them. For example, for the logistic regression:
+
+```{r confint-lm, eval=FALSE}
+confint(simple_model_logistic)
+```
+
+---
+
+
+## Regression tables
+
+As we have seen in the session on *Exploratory Data Analysis*, there are different options for creating tables as output in `R`. The ones we have looked at in the EDA session, [`stargazer`](https://cran.r-project.org/web/packages/stargazer/index.html) and [`gtsummary`](http://www.danieldsjoberg.com/gtsummary/), can be used for creating regression tables. The functions from these packages can also be used for comparing multiple regression models in one table.
+
+---
+
+## Example: Regression tables with the `stargazer` package
+
+```{r stargazer, eval = FALSE}
+library(stargazer)
+
+stargazer(
+  simple_linear_model, 
+  type = "text",        # For console output; use "html" or "latex" for other formats
+  title = "Regression Results",
+  dep.var.labels = c("AI Trust"),
+  covariate.labels = c(
+    "Main Branch", 
+    "Participation Frequency", 
+    "Years Coding"
+  ),
+  out.header = FALSE,    # Exclude header metadata if outputting to file
+  digits = 3             # Number of decimal places
+)
+
+```
+
+.right[`r emo::ji("left_arrow_curving_right")`]
+
+---
+
+class: center, middle
+.ssmall[
+```{r ref.label = "stargazer", echo = FALSE}
+```
+]
+
+---
+
+
+
+## tidy models with `broom`
+
+.pull-left[
+We have already entered the area of reporting statistical results. We will have a separate session on reporting  with `R Markdown` tomorrow. One thing to note at this point is that more and more developers in `R` were unsatisfied with the diverse output some of the standard regression procedures provide. The outputs may be helpful to look at, but they're usually not great for further processing. For that purpose, we need data frames/tibbles.
+]
+
+.pull-right[
+```{r echo = FALSE, out.width = "70%"}
+woRkshoptools::include_picture("./broom.png")
+```
+]
+
+---
+
+## 3 functions of `broom`
+
+The [`broom`](https://broom.tidymodels.org/) package provides only 3 but very powerful main functions:
+- `tidy()`: creates a `tibble` from your model
+- `glance()`: information about your model as `tibble` ('model fit')
+- `augment()`: adds information, e.g., individual fitted values to your data
+
+*Note*: With `broom` you can also create a standardized output of other types of models, such as Latent Class Analysis (LCA) (with the package [`poLCA`](https://cran.r-project.org/web/packages/poLCA/index.html)). 
+
+---
+
+## `tidy()`
+
+```{r tidy}
+library(broom)
+
+tidy(simple_linear_model)
+```
+
+---
+
+## `glance()`
+
+```{r glance}
+glance(simple_linear_model)
+```
+
+---
+
+## `augment()`
+
+```{r augment}
+augment(simple_linear_model)
+```
+
+---
+
+## Outlook: Other modeling options
+
+As we've said at the beginning of this session, we only looked at some of the basic confirmatory analysis methods. As you can imagine, however, `R` offers plenty of options more more complex statistical models as well. A few examples:
+
+- Structural equation models with [`lavaan`](https://lavaan.ugent.be/)
+
+- Multilevel/mixed-effects models with [`lme4`](https://cran.r-project.org/web/packages/lme4/index.html)
+
+- Bayesian regression models using [`brms`](https://paul-buerkner.github.io/brms/)
+
+---
+
+
+
+## Extracurricular activities
+
+As it is such a simple and useful package, we recommend exploring the `broom` package a bit further. Alex Hayes, one authors of the package, [gave an interesting talk about it at the *RStudio* Conference in 2019](https://rstudio.com/resources/rstudioconf-2019/solving-the-model-representation-problem-with-broom/).

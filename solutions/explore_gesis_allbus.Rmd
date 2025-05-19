@@ -1,0 +1,270 @@
+---
+title: "Exploring data from the GESIS German General Social Survey - ALLBUS 2021"
+author: "R User"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float: true
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    code_download: true
+    df_print: paged
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+
+options(scipen = 15)
+```
+
+#Data Wrangling
+
+```{r load-wrangle-data, echo = TRUE}
+library(tidyverse)
+library(naniar)
+library(sjlabelled)
+library(haven)
+
+inverter <- function (var) {
+  max(var, na.rm = TRUE) - var + 1
+}
+
+allbus_2021 <- read_sav("../data/allbus_2021/ZA5280_v1-0-0.sav") %>% 
+  remove_all_labels()
+
+allbus_2021_subset  <- allbus_2021  %>% 
+  select(respid,
+         sex,
+         agec,
+         educ,
+         left_right = pa01,
+         party_vote = pv01,
+         sat_dem = ps03,
+         xeno1 = ma01b,
+         xeno2 = ma02,
+         xeno3 = ma03,
+         xeno4 = ma04,
+         contact1 = mc01,
+         contact2 = mc02,
+         contact3 = mc03,
+         contact4 = mc04,
+         trust_gov = pt12,
+         life_satf = ls01
+  ) %>% 
+  replace_with_na_all(condition = ~.x < 0)  %>% 
+  mutate(sex = recode_factor(sex,
+                             `1`= "Male",
+                             `2` = "Female",
+                             `3` = "Non-binary"),
+         sat_dem = recode(sat_dem,
+                          `1` = 6,
+                          `2` = 5,
+                          `3` = 4,
+                          `4` = 3,
+                          `5` = 3,
+                          `6`= 1),
+         agec = recode_factor(agec,
+                              `1`= "<= 25 years",
+                              `2`= "26 to 30 years",
+                              `3` = "31 to 35 years",
+                              `4` = "36 to 40 years",
+                              `5` = "41 to 45 years",
+                              `6` = "46 to 50 years",
+                              .ordered = TRUE),
+         party_vote = recode_factor(party_vote,
+                                    `1`= "CDU-CSU",
+                                    `2`= "SPD",
+                                    `3` = "FDP",
+                                    `4` = "Gruene",
+                                    `6` = "Linke",
+                                    `42` = "AfD",
+                                    `90` = "Other party",
+                                    `91` = "Would not vote"),
+         distrust_gov = inverter(trust_gov)) %>% 
+  mutate(
+    xenophobia = rowMeans(across(
+      xeno1:xeno4))) %>% 
+  mutate(across(contact1:contact4,
+                ~recode(
+                  .x,
+                  `2` = 0))) %>% 
+  mutate(contact = rowSums(across(
+    contact1:contact4)))
+
+```
+
+# The data
+
+The data we use comes from the [German General Social Survey - ALLBUS 2021 ](https://search.gesis.org/research_data/ZA5280).We have selected `r ncol(allbus_2021_subset)` variables of interest for our analysis. The dataset includes data for *N* = `r nrow(allbus_2021_subset)` respondents.   
+
+
+## Missing data
+
+As not all of the respondents answered every question in the survey, we have missing data. Before we further explore the data, we want to know whether there are identifiable patterns of missingness in them.
+
+```{r vis-miss}
+library(visdat)
+
+vis_miss(allbus_2021_subset)
+```
+
+# Exploring the *GESIS German General Social Survey - ALLBUS 2021* dataset
+
+## Demographics
+
+We first want to look at gender, age (categories), education, and party vote in our sample.
+
+```{r demo-tables}
+library(janitor)
+
+allbus_2021_subset %>% 
+  tabyl(sex) %>% 
+  adorn_totals("row") %>%
+  adorn_pct_formatting() %>% 
+  knitr::kable()
+
+allbus_2021_subset %>% 
+  tabyl(agec) %>% 
+  adorn_totals("row") %>%
+  adorn_pct_formatting() %>% 
+  knitr::kable()
+
+allbus_2021_subset %>% 
+  tabyl(educ) %>% 
+  adorn_totals("row") %>%
+  adorn_pct_formatting() %>% 
+  knitr::kable()
+
+allbus_2021_subset %>% 
+  tabyl(party_vote) %>% 
+  adorn_totals("row") %>%
+  adorn_pct_formatting() %>% 
+  knitr::kable()
+
+allbus_2021_subset %>% 
+  ggplot(aes(x = educ, 
+             fill = educ)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Frequencies")
+
+allbus_2021_subset %>% 
+  filter(!is.na(party_vote)) %>% 
+  ggplot(aes(x = party_vote, 
+             fill = party_vote)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=scales::percent) +
+  ylab("Relative Frequencies")
+
+```
+
+## Summary statistics
+
+Let's look at the summary statistic for the items on xenophobia.
+
+```{r summarystats}
+library(pander)
+
+allbus_2021_subset %>% 
+  select(starts_with("xeno")) %>% 
+  summary() %>% 
+  pander()
+```
+
+## Distribution of variables
+
+We want to explore how some of the data for the question on life satisfaction and political orientation (left-right) are distributed in our sample.
+
+```{r density-satf}
+allbus_2021_subset %>% 
+  ggplot(aes(x = life_satf)) +
+  geom_bar() +
+  scale_y_continuous(expand=expansion(mult=c(0,0.1)))
+```
+
+```{r density-lr}
+allbus_2021_subset %>% 
+  ggplot(aes(x = left_right)) +
+  geom_bar() +
+  scale_y_continuous(expand=expansion(mult=c(0,0.1)))
+```
+
+## Party affiliation and xenophobic attitudes
+
+How do xenophobic attitudes differ between supporters of different parties? 
+
+```{r party-xenoph}
+allbus_2021_subset %>% 
+  ggplot(aes(x = party_vote, y = xenophobia)) +
+  geom_boxplot() +
+  geom_jitter(position = position_jitter(width = 0.1, height = 0),
+              alpha = 0.25)
+```
+
+# Analyses
+
+## Correlations
+
+We want to explore the correlations between political leaning, xenophobia, and life satisfaction.
+
+```{r correlations}
+library(correlation)
+library(GGally)
+
+allbus_2021_subset %>% 
+  select(left_right,
+         xeno1:xeno4,
+        life_satf) %>% 
+  correlation %>% 
+  knitr::kable()
+
+allbus_2021_subset %>% 
+  select(left_right,
+         xeno1:xeno4,
+         life_satf) %>% 
+  ggcorr(label = TRUE,
+         label_round = 2)
+  
+```
+
+## Regression analysis
+
+We use a logistic regression model to explore how trust in people is predicted by life satisfaction, mean xenophobic attitudes and the contact with foreigners.
+
+```{r regression}
+allbus_2021_subset <- allbus_2021_subset %>% 
+  mutate(distrust_gov_dic = ifelse(distrust_gov > 4, 0, 1))
+
+library(broom)
+
+model <- glm(distrust_gov_dic ~ 1 + life_satf + contact + xenophobia,
+             family = binomial(link = "logit"),
+             data = allbus_2021_subset)
+
+tidy_model <- model %>% 
+  tidy()
+
+tidy_model %>% 
+  knitr::kable()
+
+glance(model)
+```
+
+The unstandardized regression coefficients *b* can be selected from the `tidy_model`.
+
+### Regression plots
+
+```{r regression-plots}
+library(sjPlot)
+
+plot_model(model)
+
+plot_model(model,
+           type = "pred")
+```

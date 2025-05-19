@@ -1,0 +1,83 @@
+---
+title: 'Exercise 2_1_1: Selecting & renaming variables'
+author: 'Veronika Batzdorfer'
+date: '20-11-2024'
+---
+
+```{r child = "./content/config/exercises_setup.Rmd"}
+```
+
+
+As in the presentation, we will use **stackoverflow_survey_single_response.csv**. You should (have) download(ed) the dataset or find it in a folder called `data` within the folder containing the materials for this workshop. 
+
+```{r read-data, message = F}
+library (tidyverse)
+library (haven)
+library(sjlabelled)
+library(readr)
+
+
+stackoverflow_survey_single_response <- read_csv("./data/stackoverflow_survey_single_response.csv")
+
+```
+
+
+```{block, box.title = "2", box.body = list(fill = "white"), box.icon = "fa-star"}
+Using `base R`, create a new object called `user_background` that contains all variables that assess the respondent characteristics (like age, education, years of coding experience).
+
+```
+
+```{block, opts.label = "clues"}
+The first variable we want to select for our subset is named `main_branch`, and the last one is `years_code_pro`. They appear consecutively in the data set. Remember that there are two options for selecting columns in `base R`: One is subsetting using [ ], the other is the `subset()` function.
+```
+
+```{r second-exercise, solution = TRUE}
+# Option 1
+tuesdata_person <- stackoverflow_survey_single_response[, c("main_branch",
+                               "age",
+                               "remote_work",
+                               "ed_level",
+                               "years_code",
+                               "years_code_pro")]
+# Option 2
+tuesdata_person  <- subset(stackoverflow_survey_single_response, TRUE, select = c(main_branch:years_code_pro))
+
+```
+
+
+
+```{block, box.title = "4", box.body = list(fill = "white"), box.icon = "fa-star"}
+Again, using a function from the `tidyverse` package `dplyr`, select only the character variables from the `stackoverflow_survey_single_response` data and assign them to an object named `tuesdata_char`.
+```
+
+```{block, opts.label = "clues"}
+You need to use the selection helper `where()` for this task.
+```
+
+```{r fourth-exercise, solution = TRUE}
+tuesdata_char <-stackoverflow_survey_single_response %>% 
+  select(where(is.character))
+```
+
+
+
+```{block, box.title = "5", box.body = list(fill = "white"), box.icon = "fa-star"}
+After creating subsets of variables, let's now rename those variables using `dplyr` functions again for the `tuesdata_person` object in one step.
+
+```
+
+```{block, opts.label = "clues"}
+You can also rename variables within the `select()` command.
+```
+
+```{r fifth-exercise, solution = TRUE}
+tuesdata_person <- stackoverflow_survey_single_response %>% 
+  select(motivation = main_branch,
+         age_group = age,
+         work_mode = remote_work,
+         edu_level = ed_level,
+         yrs_experience  = years_code,
+         yrs_professional = years_code_pro)
+```
+
+
