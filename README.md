@@ -55,7 +55,7 @@ By the end of the course participants should be:
 |*Monday*     | *14:00 - 15:00* | *Lunch Break*                       |
 | **Monday** | **15:00 - 16:00** | **Reproducible Reporting with R Markdown**      |
 | *Monday* | *16:00 - 16:15*  | *Break*                             |
-| **Monday** | **16:15 - 17:00**  | **Reproducible Reporting with R Markdown**     |
+| **Monday** | **16:15 - 17:00**  | **R Markdown revisited**     |
 
 ---
 ### Day 4: [24-06]
