@@ -2,7 +2,7 @@
 title: "Data Literacy: Introduction to R"
 subtitle: "Data Wrangling - Part 1"
 author: "Veronika Batzdorfer"
-date: "2022-11-20"
+date: "2025-05-23"
 presenter: Veronika
 ---
 layout: true 
@@ -57,13 +57,10 @@ Steps when working with tabular data in the social & behavioral sciences (e.g., 
 
 ## Benefits of the `tidyverse`
 
-Data wrangling can also be done with `base R`. However, the syntax for this is typically (more) verbose and not intuitive and, hence, difficult to learn, remember, and read (plus many `tidyverse` operations are faster than their base `R` equivalents).
-
-
 
 `Tidyverse` syntax is designed to increase
 
-- **human-readability** making it **attractive for `R` novices** as it can facilitate **self-efficacy** (see [Robinson, 2017](http://varianceexplained.org/r/teach-tidyverse/))
+- **human-readability** making it **attractive for `R` novices** as it can facilitate self-efficacy (see [Robinson, 2017](http://varianceexplained.org/r/teach-tidyverse/))
 - **consistency** (e.g., data frame as first argument and output) 
 - **smarter defaults** (e.g., no partial matching of data frame and column names).
 
@@ -99,29 +96,6 @@ knitr::include_graphics("https://miro.medium.com/max/1280/0*ifjhcLyODu0nXjVx.jpg
 ]
 
 ---
-
-## Data wrangling alternatives
-
-As with almost all tasks in `R`, there are more than two packages for data wrangling. Two alternatives (or additions) to `base R` and the `tidyverse` are:
-- [`data.table`](https://rdatatable.gitlab.io/data.table/index.html)
-- [`datawizard`](https://easystats.github.io/datawizard/)
-
----
-
-## `data.table`
-
-The `data.table` package also is a powerful tool for data wrangling, especially if you work with large data sets. The reason we do not discuss `data.table` in this course is that neither of us has extensive experience with it, and comparing all three options (`base R`, `tidyverse`, and `data.table`) side-by-side would be enough for a separate workshop/course.
-
-There is, however, a very detailed [blog post by Jason Mercer](https://wetlandscapes.com/blog/a-comparison-of-r-dialects/) that compares the functionalities of `base R`, `tidyverse`, and `data.table` for data wrangling and [another one by Atreba](https://atrebas.github.io/post/2019-03-03-datatable-dplyr/) that focuses on a comparison between `data.table` and [`dplyr`](https://dplyr.tidyverse.org/) which is a key package for data manipulation from the `tidyverse`. 
-
----
-
-# `datawizard` `r emo::ji("mage")`
-
-`datawizard` is a fairly new contender in the data wrangling game that also offers quite a few handy and easy to use functions. `datawizard` is part of the [`easystats` collection of `R` packages](https://easystats.github.io/easystats/) which offer many helpful functionalities for data preparation, analysis, and reporting, which can nicely extend or complement the `tidyverse`. We will discuss some of the `easystats` packages again in the sessions on exploratory and confirmatory data analysis.
-
----
-
 ## Structure & focus of this session
 
 - focus on differences between `base R` and the `tidyverse`
@@ -138,9 +112,10 @@ Of course, it is possible to combine `base R` and `tidyverse` code. However, in 
 ```{r install-tidyverse, eval = F}
 install.packages("tidyverse")
 ```
-**Load core `tidyverse` packages** (NB: To save time and reduce namespace conflicts you can also load `tidyverse` packages individually)
+**Load core `tidyverse` packages** <small>(NB: To save time and reduce namespace conflicts you can also load `tidyverse` packages individually)<small>
+
 ```{r load-tidyverse, message = F}
-library("tidyverse") ##load the tidyverse package
+library(tidyverse) ##load the tidyverse package
 ```
 
 ---
@@ -226,13 +201,15 @@ More about pipes: https://r4ds.had.co.nz/pipes.html
 
 ---
 
-## Pipes
+## Pipes ("Chaining")
 
-- The `%>%` used in the `tidyverse` is part of the [`magrittr` package](https://magrittr.tidyverse.org/) which also includes other specialized types of pipes.
+- (((Onions))) vs. Pipes
 
-- *RStudio* offers a keyboard shortcut for inserting **`%>%`**: <kbd>Ctrl + Shift + M</kbd> (*Windows* & *Linux*)/<kbd>Cmd + Shift + M</kbd> (*Mac*)
+- The `%>%` used in the `tidyverse` is part of the [`magrittr` package](https://magrittr.tidyverse.org/) to pass data to another function.
 
-- Since [version 4.1.0](https://cran.r-project.org/bin/windows/base/NEWS.R-4.1.0.html), `base R` also offers its own pipe `|>`, which is similar to but not the same as the `%>%` pipe.
+- *RStudio* offers a keyboard shortcut for inserting .highlight[**`%>%`**]: <kbd>Ctrl + Shift + M</kbd> (*Windows* & *Linux*)/<kbd>Cmd + Shift + M</kbd> (*Mac*)
+
+
 
 ---
 
@@ -251,13 +228,13 @@ If you collect data yourself, the raw data may be `untidy`, e.g.:
 - a variable that should be in one column is spread across multiple columns (e.g., parts of a date or name).
 
 
-If you need to make your data tidy or change it from wide to long format or vice versa (which may, e.g., be necessary if you work with longitudinal survey data from multiple waves), the [`tidyr` package](https://tidyr.tidyverse.org/) from the `tidyverse` is a good option.
+If you need to make your data tidy or change it from wide to long format or vice versa, the [`tidyr` package](https://tidyr.tidyverse.org/) from the `tidyverse` is a good option.
 
 ---
 
 ## Interlude 1: Citing FOSS
 
-You should also make sure to cite the free and open-source software that you use, such as `R` packages and `R` itself. There is a function in `R` that tells you how to cite it or any of the packages you have used (for this please see `sessionInfo()`).
+There is a function in `R` that tells you how to cite it or any of the packages you have used (for this please see .highlight[`sessionInfo()`].
 
 ```{r citation}
 citation()
@@ -313,7 +290,7 @@ qname_levels_single_response_crosswalk <- read_csv("./data/qname_levels_single_r
 
 ## `dplyr`
 
-The `tidyverse` examples in the following will make use of [`dplyr` functions](https://dplyr.tidyverse.org/) that are **verbs** that signal an action (e.g. `group_by()`, `glimpse()`, `filter()`)
+The `tidyverse` examples in the following will make use of [`dplyr` functions](https://dplyr.tidyverse.org/) that are .highlight[**verbs**] that signal an action (e.g., `group_by()`, `glimpse()`, `filter()`)
 Their structure is:
 1. The first argument is a data frame.
 2. The subsequent arguments describe what to do with the data frame.
@@ -329,7 +306,7 @@ Their structure is:
 
 ## First look `r ji("eyes")`
 
-The `dplyr` package provides a function for getting a first good look at your data, that is especially helpful when working with data sets that contain many columns/variables. The function `glimpse()` prints a data frame/tibble in a way that represents columns as rows and rows as columns and also provides some additional information about the data frame and its columns.
+Getting a first good look at your data. The function `glimpse()` prints a data frame/tibble in a way that represents columns as rows and rows as columns and also provides some additional information about the data frame and its columns.
 
 ```{r glimpse, eval=FALSE}
 stackoverflow_survey_single_response %>% 
@@ -343,7 +320,7 @@ stackoverflow_survey_single_response %>%
 
 class: middle
 
-.tinyisher[
+.tiny[
 ```{r ref.label = "glimpse", echo = FALSE}
 ```
 ]
@@ -352,7 +329,7 @@ class: middle
 
 ## Selecting variables
 
-We might want to reduce our data frame (or create a new one) to only include a **subset of specific variables**. E.g., select only the variables that measure attitudes towards *AI* (`ai_`) from our full data set. There are two options with `base R`:
+We might want to reduce our data frame (or create a new one) to only include a **subset of specific variables**. E.g., select only the variables that measure attitudes towards *AI* (`ai_`) from our full data set. There are two options with .highlight[`base R`]:
 
 Option 1
 .small[
@@ -390,7 +367,7 @@ names(tuesdata_ai)
 
 ## Selecting variables
 
-In the `tidyverse`, we can create a subset of variables with the `dplyr` verb `select()`.
+In .highlight[`tidyverse`], we can create a subset of variables with the `dplyr` verb .highlight[`select()`].
 
 ```{r select}
 tuesdata_ai <- stackoverflow_survey_single_response %>% 
@@ -421,7 +398,7 @@ head(tuesdata_ai)
 
 ## Selecting a range of variables
 
-Same as for `base R`, you can also use the numeric index of variables in combination with `select()` from `dplyr`.
+Same as for .highlight[`base R`], you can also use the numeric index of variables in combination with `select()` from `dplyr`.
 
 ```{r select-index}
 tuesdata_ai <- stackoverflow_survey_single_response  %>% 
@@ -455,7 +432,7 @@ dim(tuesdata_cut)
 You can also use `select()` from `dplyr` to exclude one or more columns/variables.
 
 ```{r unselect}
-tuesdata_cut<- stackoverflow_survey_single_response%>% 
+tuesdata_cut<- stackoverflow_survey_single_response %>% 
   dplyr::select(-c(dev_type, purchase_influence, remote_work))
 
 dim(tuesdata_cut)
@@ -481,7 +458,7 @@ glimpse(tuesdata_freq)
 
 ## Advanced ways of selecting variables
 
-Another particularly useful selection helper is `where()` to select only a specific type of variables.
+Another particularly useful selection helper is .highlight[`where()`] to select only a specific type of variables.
 
 ```{r where-num}
 tuesdata_num <- stackoverflow_survey_single_response %>% 
@@ -504,39 +481,13 @@ names(stackoverflow_survey_single_response)
 ## Renaming variables
 
 It is good practice to use consistent naming conventions. Since `R` is .highlight[case-sensitive], we might want to only use lowercase letters.<br/> 
-As spaces in variable names can cause problems, we could, e.g., decide to use `r ji("snake")` *snake_case* (`r ji("camel")`<br/> <br/> 
-*camelCase* is a common alternative; for a good brief discussion of options for avoiding spaces in variable names, see this [Medium post by Patrick Divine](https://medium.com/@pddivine/string-case-styles-camel-pascal-snake-and-kebab-case-981407998841)).
-
----
-
-# Become an ace of case
-
-```{r, case-cartoon, out.width = "80%", echo = F}
-knitr::include_graphics("https://github.com/allisonhorst/stats-illustrations/raw/main/other-stats-artwork/coding_cases.png")
-```
-<small><small>Artwork by [Allison Horst](https://github.com/allisonhorst/stats-illustrations) </small></small>
+As spaces in variable names can cause problems, we could, e.g., decide to use `r ji("snake")` *snake_case* (`r ji("camel")`<br/> <br/> *camelCase* is a common alternative; 
 
 ---
 
 ## Renaming variables
 
-You can rename individual columns/variables in `base R` as follows:
-
-```{r rename-base, eval=FALSE}
-colnames(stackoverflow_survey_single_response)[colnames(stackoverflow_survey_single_response) == "ai_sent"] <- "ai_workflow"
-```
-
-As for subsetting, you can also rename variables based on their numeric index.
-
-```{r base-rename-index, eval=FALSE}
-colnames(stackoverflow_survey_single_response)[20] <- "ai_workflow"
-```
-
----
-
-## Renaming variables
-
-An easier to use and more versatile option for renaming columns/variables is the `dplyr` function `rename()`.
+Renaming columns/variables in `dplyr` with .highlight[`rename()`].
 
 ```{r rename}
 tuesdata_rn <- stackoverflow_survey_single_response %>% 
@@ -555,7 +506,7 @@ names(tuesdata_rn)
 
 For some more advanced renaming options, you can use the `dplyr` function `rename_with()`.
 
-*Note*: The [`janitor` package](https://sfirke.github.io/janitor/) (which is `tidyverse`-oriented) can be used to facilitate several common data cleaning tasks. Among other things, it contains the function `clean_names()` that takes a data frame and creates column names that "are unique and consist only of the _ character, numbers, and letters" (from the help file for this function), with the default being `r ji("snake")` snake_case (but support for many other types of cases).
+*Note*: The [`janitor` package](https://sfirke.github.io/janitor/) contains the function `clean_names()` that takes a data frame and creates column names that "are unique and consist only of the _ character, numbers, and letters" (from the help file for this function), with the default being `r ji("snake")` snake_case (but support for many other types of cases).
 
 ```{r rename-with}
 stackoverflow_survey_single_response %>% 
@@ -569,7 +520,7 @@ stackoverflow_survey_single_response %>%
 
 ## Renaming variables
 
-We can use `rename_with()` in combination with `gsub()` (which we've already encountered in the session on *Getting Started*) to remove (or change) prefixes in variable names.
+We can use `rename_with()` in combination with `gsub()` to remove (or change) prefixes in variable names.
 
 ```{r rename-with-prefix}
 stackoverflow_survey_single_response %>% 
@@ -581,7 +532,7 @@ stackoverflow_survey_single_response %>%
 
 ---
 
-## Re~~wind~~name selecta
+## Re~~wind~~name select
 
 A nice thing about the `dplyr` verb `select` is that you can use it to select and rename variables in one step.
 
@@ -609,7 +560,7 @@ class: center, middle
 
 ## Filtering rows
 
-In `R`, you can filter rows/observations dependent on one or more conditions.
+Filter rows/observations dependent on one or more conditions.
 
 To filter rows/observations you can use... 
 - **comparison operators**:
@@ -676,14 +627,6 @@ tuesdata_filter <- stackoverflow_survey_single_response %>%
 dim(tuesdata_filter)
 ```
 
----
-
-## `dplyr::filter()`
-
-```{r, filter-cartoon, out.width = "95%", echo = F}
-knitr::include_graphics("https://github.com/allisonhorst/stats-illustrations/raw/main/rstats-artwork/dplyr_filter.jpg")
-```
-<small><small>Illustration by [Allison Horst](https://github.com/allisonhorst/stats-illustrations) </small></small>
 
 ---
 
@@ -721,7 +664,7 @@ dim(tuesdata_developer_or_age)
 
 Similar to `select()` there are some helper functions for `filter()` for advanced filtering of rows. For example, you can...
 
- - Filter rows based on a range in a numeric variable
+ - Filter rows based on a .highlight[range in a numeric variable]
 
 ```{r between}
 tuesdata_frequent_user <- stackoverflow_survey_single_response %>% 
@@ -740,7 +683,8 @@ dim(tuesdata_frequent_user)
 
 ```{r if-all}
 tuesdata_high_engagement  <- stackoverflow_survey_single_response %>% 
-  dplyr::filter(dplyr::if_all(dplyr::starts_with ("s0"), ~ . >=5)) # read: if the values of variables starting with pt in this df are >= 5 (indicating high engagement)
+# if the values of vars start with s0 in this df are >= 5 
+  dplyr::filter(dplyr::if_all(dplyr::starts_with ("s0"), ~ . >=5)) 
 
 dim(tuesdata_high_engagement)
 ```
