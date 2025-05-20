@@ -26,7 +26,7 @@ By the end of the course participants should be:
 |-------------|-----------------|--------------------------------------|
 | **Friday** | **12:00 - 13:00** | **[Onboarding & Getting Started with R](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/f86ab452117d113b0ab4b38b657117fbe8a45b70/slides/1_1_Getting_Started.html)** |
 | *Friday* | *13:00 - 13:15*  | *Break*                             |
-| **Friday** | **13:15 - 14:00** | **[Data Types & Loading]()**            |
+| **Friday** | **13:15 - 14:00** | **[Data Types & Loading](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/5ec611973042ca8fb8f34b6bcbdb6380ef418b87/slides/1_2_Data_Types_Import_Export.html)**            |
 |*Friday*     | *14:00 - 15:00* | *Lunch Break*                       |
 | **Friday** | **15:00 - 16:00** | **[Data Wrangling]()**      |
 | *Friday* | *16:00 - 16:15*  | *Break*                             |
