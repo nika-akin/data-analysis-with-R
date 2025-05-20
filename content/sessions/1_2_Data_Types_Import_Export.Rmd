@@ -2,7 +2,7 @@
 title: "Data Literacy: Introduction to R"
 subtitle: "Data Types, Import & Export"
 author: "Veronika Batzdorfer"
-date: "2024-11-20"
+date: "2025-05-23"
 presenter: Veronika
 editor_options: 
   chunk_output_type: console
@@ -15,7 +15,7 @@ layout: true
 ---
 
 ## Getting data into `R`
-Thus far, we've already learned what `R` and `RStudio` are. This course is about starting to use `R` and feeling prepared to use it for statistical analyses. There's one essential prerequisite:
+Thus far, we've already learned what `R` and `RStudio` are. There's one essential prerequisite:
 
 .center[**We need data!**]
 
@@ -34,9 +34,16 @@ woRkshoptools::include_picture("./import_data.png")
 
 ---
 
-## Data we use in this course
+## Data built in
 
-During the course, we use several different data sets. Especially in this session, where we apply different importing functions, we quite a few data sets, from data about the Titanic to data about unicorns. However, we will also use data that are more interesting for social and behavioral scientists.
+```{r eval=F}
+
+data()
+
+```
+
+
+
 
 ---
 
@@ -102,14 +109,14 @@ At first glance, a *character* is a letter somewhere between a-z. *String* in th
 
 ## Factors
 
-If you're a *Stata* (or *SPSS*) user, you may already be  familiar with factors. Factors are data types that assume that their values are not continuous, e.g., as in [ordinal](https://en.wikipedia.org/wiki/Level_of_measurement#Ordinal_scale) or [nominal](https://en.wikipedia.org/wiki/Level_of_measurement#Nominal_level) data.
+Factors are data types that assume that their values are not continuous, e.g., as in [ordinal](https://en.wikipedia.org/wiki/Level_of_measurement#Ordinal_scale) or [nominal](https://en.wikipedia.org/wiki/Level_of_measurement#Nominal_level) data.
 
 ```{r factor}
 factor(1.1)
 factor("Hi. I am a character string, the 1st of its kind!")
 ```
 
-Factors take numeric data or character strings as input as they simply convert them into so-called levels. This concept may be a little bit abstract for the time being. It's just essential to have heard about them before you learn more about them.
+Factors take *numeric* data or *character* strings as input as they simply convert them into so-called **levels**.
 
 ---
 
@@ -216,7 +223,7 @@ c(1, 2, "evil string")
 
 ## Data frames
 
-While matrices are used, e.g.,--\*drumroll\*-- for matrix operations, data frames resemble more the data formats most of you are probably already familiar with. We can build data frames by hand as here:
+
 
 .tinyish[
 ```{r data-frames, eval = FALSE}
@@ -330,9 +337,9 @@ class: middle
 
 ## Accessing elements by index
 
-Generally, the logic of `[index_number]` is used in `R` to access only a subset of information in an object, no matter if we have vectors or data frames.
+Generally, the logic of <span style="background-color: yellow;" > `[index_number]`</span> is to access only a subset of information in an object, no matter if we have vectors or data frames.
 
-Say, we want to extract the second element of our `character_vector` object, we could do that like this:
+Say, we want to extract the 2nd element of our `character_vector` object, we could do that like this:
 
 ```{r character-vector}
 character_vector[2]
@@ -348,7 +355,7 @@ Matrices can have more dimensions, often you want information from a specific ro
 a_wonderful_matrix[number_of_row, number_of_column]
 ```
 
-*Note*: You can do the same indexing with `data.frame`s. We will talk more about this in the session on *Data Wrangling Basics*.
+*Note*: You can do the same indexing with `data.frame`s. 
 
 ---
 
@@ -362,17 +369,12 @@ fancy_matrix[3,] # 3rd row of matrix
 fancy_matrix[2:4, 1:3] # rows 2,3,4 of columns 1,2,3 
 ```
 
-It's really like in math, and you can perform standard mathematical operations, such as matrix multiplications.
-
-```{r matrix-multiplication}
-fancy_matrix[2:4, 1:3] %*% fancy_matrix[1:3, 2:4]
-```
 
 ---
 
 ## The case of data frames
 
-A nice feature of `data.frames` or `tibbles` is that their columns are names, just as variable names in ordinary data. It would be cumbersome to use index numbers to extract a specific column/variable, right? Do not fear:
+A nice feature of `data.frames` or `tibbles` is that their columns are names, just as variable names in ordinary data. 
 
 ```{r column-name}
 fancy_data$who
@@ -417,7 +419,7 @@ https://twitter.com/hadleywickham/status/643381054758363136
 
 ## Data frame check 1, 2, 1, 2!
 
-Once you start working with data in `R` a good first thing to do is to have a quick look at them. The most high-level information you can get is about the object type and its dimensions.
+The most high-level information you can get is about the object type and its dimensions.
 
 .small[
 ```{r class-dim}
@@ -487,7 +489,6 @@ names(fancy_data) <- c("name", "age", "salary_2018", "salary_2019")
 names(fancy_data)
 ```
 
-However, there are more flexible ways of doing this as we will see in the session on *Data Wrangling Basics* tomorrow.
 
 ---
 
@@ -594,16 +595,6 @@ woRkshoptools::include_picture("importBrowse.PNG")
 woRkshoptools::include_picture("codepreview.PNG")
 ```
 
----
-
-## Honestly, after some time you will write the code directly
-
-.center[
-```{r, echo = FALSE}
-woRkshoptools::include_picture("coding_cat.gif")
-```
-.footnote[[Source](https://media.giphy.com/media/LmNwrBhejkK9EFP504/source.gif)]
-]
 
 ---
 
@@ -621,14 +612,6 @@ Other file formats, particularly the proprietary ones, require the use of additi
 
 ---
 
-## File formats wars
-
-```{r echo = FALSE, out.width = "30%"}
-woRkshoptools::include_picture("norm_normal_file_format.png")
-```
-https://xkcd.com/2116/
-
----
 
 ## Disclaimer
 
@@ -648,7 +631,7 @@ titanic
 ```{r loadtitanic-print, echo = FALSE}
 titanic <- read.csv("./data/titanic.csv")
 
-titanic
+head(titanic)
 ```
 ]
 
@@ -714,7 +697,7 @@ These were just some very first examples of applying functions for data import f
 - `read_stata()`
 ]
 
-Not to mention all the helper functions and options. For example, we can define the cells to read from an *Excel* file by specifying the option `range = "C1:E4"` in `read_excel()`
+
 
 ---
 
@@ -875,15 +858,12 @@ woRkshoptools::include_picture("export_data.png")
 write_csv(titanic, "titanic_own.csv")
 ```
 
-```{r export_stata, eval=FALSE}
-write_dta(titanic, "titanic_own.dta")
-```
 
 ---
 
 ## `R`'s native file formats
 
-If you plan to continue to work with `R` (something we would always recommend `r emo::ji("stuck_out_tongue_winking_eye")`), there are at least two native 'file formats' to choose from. The advantage of using them is that they are compressed files, so that they don't occupy unnecessarily large disk space. These two formats are `.Rdata`/`.rda` and `.rds`.
+There are 2 native 'file formats' to choose from. The advantage of using them is that they are compressed files, so that they don't occupy unnecessarily large disk space. These two formats are `.Rdata`/`.rda` and `.rds`.
 **The key difference between them is that `.rds` can only hold one object, whereas `.Rdata`/`.rda` can also be used for storing several objects in one file.**
 
 ---
@@ -939,29 +919,15 @@ save.image()
 
 ---
 
-## Additional packages
-
-Besides `readr`, `haven` and `readxl`, there also are some other packages that facilitate importing specific data types as tibbles:
-
-- [`sjlabelled`](https://cran.r-project.org/web/packages/sjlabelled/index.html) for labelled data, e.g., from *SPSS* or *Stata*
-
-- [`sf`](https://github.com/r-spatial/sf) for geospatial data
-
----
-
 ## Other packages for data import
 
 For data import (and export) in general, there are even more options, such as... 
 
-- `base` R
-
-- the [`foreign` package](https://cran.r-project.org/web/packages/foreign/index.html) for *SPSS* and *Stata* files
 
 - [`data.table`](https://cran.r-project.org/web/packages/data.table/index.html) or [`fst`](https://www.fstpackage.org/) for large data sets
 
 - [`jsonlite`](https://cran.r-project.org/web/packages/jsonlite/index.html) for `.json` files
 
-- [`datapasta`](https://github.com/MilesMcBain/datapasta) for copying and pasting data into tribbles (e.g., from websites, *Excel* or *Word* files)
 
 ---
 
