@@ -2,7 +2,7 @@
 title: "Data Literacy: Introduction to R "
 subtitle: "Data Visualization - Part 1"
 author: "Veronika Batzdorfer"
-date: "2024-11-22"
+date: "2025-05-24"
 presenter: Veronika
 editor_options: 
   chunk_output_type: console
@@ -45,7 +45,12 @@ There's more that we won't cover:
 
 ### Data for this session
 
-```{r load_tuesdata, echo=TRUE}
+```{r eval=FALSE}
+df<- stackoverflow_survey_single_response
+```
+
+
+```{r load_tuesdata, echo=FALSE}
 library(tidyverse)
 library(dplyr)
 
@@ -84,7 +89,7 @@ df <- stackoverflow_survey_single_response %>%
 ```
 
 ---
-```{r cleaning-2}
+```{r cleaning-2, echo=FALSE}
 # Recode main_branch
 df <- df %>%
   mutate(
@@ -205,6 +210,21 @@ df <- df %>%
   )
 ```
 
+---
+```{r}
+amount_topcountries <- df %>%
+  filter(!is.na(country)) %>% 
+  group_by(country) %>%
+  summarise(Amount = n()) %>%
+  arrange(desc(Amount)) %>%
+  head(20) %>%                     # Top 20 first
+  mutate(country = reorder(country, Amount)) %>%  # Reorder country factor
+  ungroup()
+
+
+amount_topcountries %>% head()
+```
+
 
 
 
@@ -212,32 +232,25 @@ df <- df %>%
 
 ## Graphics in `R`
 
-The `graphics` package is already included for that.
+The `graphics` package is already included.
 
 .pull-left[
 ```{r graphics_barplot, eval = FALSE}
 
-main_branch_counts <- table(df$main_branch)
+#-- Adjust plot margins--
+par(mar = c(10, 4, 4, 2))  
 
-# Adjust plot margins to ensure labels fit
-par(mar = c(8, 4, 4, 2))  # Increase bottom margin
-
-# Create the bar plot with smaller font size
 barplot(
-  main_branch_counts,
-  main = "Distribution of Main Branch (Skill Level)",
-  xlab = "",
-  ylab = "Count",
-  col = "darkgreen",
-  border = "black",
-  las = 2,           
-  cex.names = 0.8,   
-  cex.main = 0.9,    
-  cex.lab = 0.9,     
-  cex.axis = 0.8     
+  height = amount_topcountries$Amount,
+  names.arg = amount_topcountries$country,
+  las = 2,                          # Rotate labels for readability
+  main = "Top 20 Countries by Count",
+  ylab = "Number of Records",
+  cex.names = 0.9,                 # Resize labels
+  border = NA                      # Remove border 
 )
 
-# Reset margins after the plot
+#-- Reset margins after the plot
 par(mar = c(5, 4, 4, 2))
 
 
@@ -257,7 +270,15 @@ The most basic function to plot in R is `plot()`.
 .pull-left[
 ```{r basic_plot, eval = FALSE}
 options(scipen = 999)
-plot(df$yearly_compensation)
+
+
+plot_df <- stackoverflow_survey_single_response %>% 
+  filter(!is.na(converted_comp_yearly), !is.na(years_code))
+
+
+plot(plot_df$years_code, plot_df$converted_comp_yearly)
+
+
 ```
 ]
 
@@ -269,8 +290,7 @@ plot(df$yearly_compensation)
 ---
 
 
-
-#### Adding to the plot: titles & labels
+## Adding to the plot: titles & labels
 
 .pull-left[
 ```{r titles_labels, eval = FALSE}
@@ -342,7 +362,7 @@ boxplot(
 ---
 
 ## The `par()` and `dev.off()` functions for plots
-`par()` stands for graphical parameters and is called before the actual plotting function. It prepares the graphics device in `R`. The most commonly used options are for "telling" the device that 2, 3, 4, or `x` plots have to be printed.
+.highlight[`par()`] stands for graphical parameters and is called before the actual plotting function. It prepares the graphics device in `R`. The most commonly used options are for "telling" the device that 2, 3, 4, or `x` plots have to be printed.
 
 We can, e.g., use `mfrow` for specifying how many rows (the first value in the vector) and columns (the second value in the vector) we aim to plot. 
 
@@ -393,17 +413,6 @@ hist(df$years_coding)
 dev.off()
 ```
 
-
----
-
-## A personal note on `base R` plotting
-
-
-But to be honest: I do not use all the other functions that often. The syntax is sometimes cumbersome with all the `par()`  or `dev.off()` calls, and manipulating parameters simply feels somewhat "outdated".
-
-In the following, we will turn towards more modern techniques using the `ggplot2` package. Yet, we still believe that it is worthwhile to become comfortable with `base R` plotting since `ggplot2`, e.g., may sometimes be "too much" for simple quick data exploration.
-
-**As so often, in the end, it's also a matter of taste.**
 
 ---
 
@@ -546,7 +555,7 @@ knitr::include_graphics("https://github.com/jobreu/r-intro-gesis-2021/blob/main/
 `ggplot2` prefers data in long format (**NB**: of course, only if this is possible and makes sense for the data set at hand)
 
 .pull-left[
-We may want to get used to it as this format has some benefits:
+
 - every element we aim to plot is an observation
 - no thinking required how a specific variable relates to an observation
 - most importantly, the long format is more parsimonious
@@ -695,7 +704,7 @@ df %>%
   ggplot(aes(
     x = years_coding, 
     y = participation_frequency, 
-    group = ai_threat
+    group = main_branch 
   )) +
   geom_smooth(method = "lm", se = FALSE)
 
@@ -722,8 +731,8 @@ ggplot(
   aes(
     x = years_coding, 
     y = participation_frequency, 
-    group = ai_threat,
-    color = ai_threat)) +
+    group = main_branch,
+    color = main_branch)) +
   geom_smooth(method = "lm", se = FALSE) 
 ```
 ]
@@ -747,8 +756,8 @@ ggplot(
   aes(
     x = years_coding, 
     y = participation_frequency, 
-    group = ai_threat,
-    color = ai_threat)) +
+    group = main_branch,
+    color = main_branch)) +
   geom_smooth(method = "lm", se = FALSE)  +
   scale_color_brewer(
     palette = "Dark2"
@@ -766,16 +775,16 @@ ggplot(
 ## Difference between `color` and `fill`
 Notably, there are two components of the plot or `geom` associated with colors: `color` and `fill`.
 
-Generally, `color` refers to the geometry borders, such as a line. `fill` refers to a geometry area, such as a polygon.
+Generally, .highlight[`color`] refers to the geometry borders, such as a line. .highlight[`fill`] refers to a geometry area, such as a polygon.
 
-Have this difference in mind when you use `scale_color_brewer` or `scale_fill_brewer` in your plots. Manipulating these colors and their corresponding legends in an elaborate plot can get a little tricky. 
+Remember when using `scale_color_brewer` or `scale_fill_brewer` in your plots. 
 
 ---
 
 ## Colors and `theme`s
 One particular strength of `ggplot2` lies in its immense theming capabilities. The package has some built-in theme functions that makes theming a plot fairly easy, e.g.,
 - `theme_bw()`
-- `theme_dark()`
+- `theme_apa()`
 - `theme_void()`
 - etc.
 
@@ -799,8 +808,8 @@ ggplot(
     method = "lm", 
     se = FALSE
     ) +
-  facet_wrap(~ai_threat, ncol = 3) +
-  theme_light()
+  facet_wrap(~main_branch, ncol = 3, nrow=2) +
+  papaja::theme_apa()
 
 ```
 ]
@@ -838,7 +847,7 @@ ggplot(
     method = "lm", 
     se = FALSE
     ) +
-  facet_wrap(~ai_threat, ncol = 3) +
+  facet_wrap(~main_branch, ncol = 3, nrow = 2) +
   theme_bw()+
   theme(
     panel.grid.major = 
@@ -873,7 +882,7 @@ ggplot(
     method = "lm", 
     se = FALSE
     ) +
-  facet_wrap(~ai_threat, ncol = 3) +
+  facet_wrap(~main_branch, ncol = 3, nrow = 2) +
   theme_bw()+
   theme(
     panel.grid.major = 
@@ -1058,20 +1067,21 @@ df %>%
   ggplot(
     aes(
       x = age_group, 
-      fill = age_group
+      fill = age_group                # Fill bars with color based on age group
     )
   ) + 
-  geom_bar(
+  geom_bar(                           # Create a bar plot
     aes(
-      y = (..count..)/sum(..count..)
+      y = (..count..)/sum(..count..)  # Compute relative frequencies (proportions)
     )
   ) +
   scale_y_continuous(
-    labels = percent
+    labels = percent                  # Format y-axis labels as percentages
   ) +
   ylab("Relative Frequencies")+
   theme_classic() +
-  theme(legend.position = "none")
+  theme(legend.position = "none")     # Hide the legend
+
 ```
 ]
 
@@ -1108,46 +1118,75 @@ df  %>%
 
 
 ---
+## Are those particpating considering themselves as members?
 
-
-## Correlation plots 
-
-.pull-left[
-```{r correlation-plot-ii, eval = FALSE}
-library(GGally)
-
-# Remove missing values
-df_clean <- df %>%
-  filter(!is.na(ai_sentiment) & !is.na(ai_acc) & !is.na(ai_complexity) & !is.na(ai_threat))
-
-# to factors
-df_clean <- df_clean %>%
+```{r warning=FALSE, message=FALSE}
+survey <- stackoverflow_survey_single_response %>%
   mutate(
-    ai_sentiment = factor(ai_sentiment, levels = c("Very unfavorable", "Somewhat unfavorable", "Neutral", "Somewhat favorable", "Very favorable")),
-    ai_acc = factor(ai_acc, levels = c("Very distrustful", "Somewhat distrustful", "Neutral", "Somewhat trust", "Very trust")),
-    ai_complexity = factor(ai_complexity, levels = c("Bad at complex tasks", "Neutral", "Good at complex tasks")),
-    ai_threat = factor(ai_threat, levels = c("No", "Yes"))
+    so_comm = recode(as.character(so_comm),
+                     `1` = "Neutral",
+                     `2` = "No, not at all",
+                     `3` = "No, not really",
+                     `4` = "Not sure",
+                     `5` = "Yes, definitely",
+                     `6` = "Yes, somewhat"),
+    
+    so_part_freq = recode(as.character(so_part_freq),
+                          `1` = "A few times per month or weekly",
+                          `2` = "A few times per week",
+                          `3` = "Daily or almost daily",
+                          `4` = "I have never participated in Q&A on Stack Overflow",
+                          `5` = "Less than once per month or monthly",
+                          `6` = "Multiple times per day")
+  )
+```
+
+---
+```{r survey, warning=FALSE, message=FALSE}
+
+library(scales)
+library(ggrepel)
+
+survey %>%
+  select(country, so_comm, so_part_freq) %>%
+  filter(!is.na(country), !is.na(so_comm), !is.na(so_part_freq)) %>%
+  group_by(country) %>%
+  summarise(
+    ConsiderMember = mean(so_comm %in% c("Yes, definitely", "Yes, somewhat"), na.rm = TRUE),
+#return a logical vector true/false for each row (country) if in freq. group and then calc. mean     
+    particip = mean(so_part_freq %in% c(
+      "Multiple times per day",
+      "Daily or almost daily",
+      "A few times per week",
+      "A few times per month or weekly"), na.rm = TRUE),
+    n = n()
+  ) %>%
+  filter(n > 700) %>%
+  ggplot(aes(particip, ConsiderMember, label = country, col = ConsiderMember)) +
+  geom_text_repel(size = 3, point.padding = 0.25) +
+  geom_point(aes(size = n), alpha = 1) +
+  scale_y_continuous(labels = percent_format()) +
+  scale_x_continuous(labels = percent_format()) +
+  scale_size_continuous(labels = comma_format()) +
+  scale_color_gradientn(colors = viridis::viridis(50))+
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    x = "% who participated at least weekly",
+    y = "% who consider themselves as SO Community",
+    title = "Community Membership by Country and Stack Overflow Participation"
   )
 
+```
+---
 
-cor_matrix <- df_clean %>%
-  mutate_all(factor) %>%
-  mutate_all(~as.integer(factor(.))) %>%
-  cor(method = "spearman", use = "complete.obs")  # Complete case analysis
+class: middle
 
-
-print(cor_matrix)
-
-ggcorr(cor_matrix, label = TRUE, label_size = 2)
-
-
+.tiny[
+```{r ref.label = "survey", echo = FALSE}
 ```
 ]
 
-.pull-right[
-```{r ref.label = "correlation-plot-ii", echo = FALSE}
-```
-]
 
 ---
 
