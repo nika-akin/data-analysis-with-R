@@ -37,7 +37,7 @@ By the end of the course participants should be:
 ### Day 2: [24-05]
 | Day         | Time            | Topic                                |
 |-------------|-----------------|--------------------------------------|
-| **Saturday** | **12:00 - 13:00** | **Data Wrangling 2.0** |
+| **Saturday** | **12:00 - 13:00** | **[Data Wrangling 2.0](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/167de8e72ac12083028f2eb87f2993fd7db07403/slides/2_2_Data_Wrangling_Part2.html)** |
 | *Saturday* | *13:00 - 13:15*  | *Break*                             |
 | **Saturday** | **13:15 - 14:00** | **Exploratory Analyses**            |
 |*Saturday*     | *14:00 - 15:00* | *Lunch Break*                       |
