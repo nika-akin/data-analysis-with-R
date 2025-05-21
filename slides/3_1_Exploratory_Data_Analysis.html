@@ -4,7 +4,7 @@
     <title>Data Literacy: Introduction to R</title>
     <meta charset="utf-8" />
     <meta name="author" content="Veronika Batzdorfer" />
-    <meta name="date" content="2024-11-21" />
+    <meta name="date" content="2025-05-24" />
     <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
 document.addEventListener('DOMContentLoaded', function(e) {
@@ -603,7 +603,7 @@ class: center, middle, inverse, title-slide
 ### Veronika Batzdorfer
 ]
 .date[
-### 2024-11-21
+### 2025-05-24
 ]
 
 ---
@@ -620,13 +620,12 @@ layout: true
 
 ## Exploring EDA
 
-As stated before, exploratory data analysis can take many shapes and forms. In this session, we will focus on the following:
+In this session, we will focus on the following:
 
 - summary statistics (for numeric variables)
 - frequencies &amp; proportions (for categorical variables)
 - cross-tabulations &amp; correlations
 
-*Note*: In this session, we will focus on numeric summaries and descriptions of our data. Notably, data visualization typically also is a big part of EDA. We will cover that in the following session on data visualization with `R`.
 
 ---
 
@@ -634,16 +633,6 @@ As stated before, exploratory data analysis can take many shapes and forms. In t
 
 In the previous sessions, we have tried to focus on a small set of packages (mostly from `base R` and the `tidyverse`) and took a deep dive 🥽 exploring their functionalities. By comparison, in this session, we will browse through more different packages. 
 
-As we have said before, there typically is more than one option (and package) for doing things in `R`. Given the high number of packages that have been developed for EDA, this topic is a very suitable example for demonstrating this.
-
-
----
-
-## Repetition: Data wrangling pipeline
-
-As a repetition and reminder, we will quickly go some of the wrangling steps we discussed before for variables listed on the previous slide in the following.
-
-Of course, it is possible to do the whole wrangling in one pipe. However, to check if everything worked it is advisable to break up the pipe into smaller chunks (a nice tool for checking and debugging pipes that also provides an *RStudio* addin is the package [`ViewPipeSteps`](https://github.com/daranzolin/ViewPipeSteps)). Also, splitting up the wrangling pipe steps allows us to show them on the slides.
 
 
 ---
@@ -652,7 +641,7 @@ Of course, it is possible to do the whole wrangling in one pipe. However, to che
 
 .small[
 
-```r
+``` r
 library(sjlabelled)
 library(tidyverse)
 library(haven)
@@ -666,7 +655,7 @@ qname_levels_single_response_crosswalk &lt;- read_csv(&quot;./data/qname_levels_
 ```
 
 
-```r
+``` r
 tuesdata_eda &lt;- stackoverflow_survey_single_response %&gt;% 
   select(age,
          main_branch,
@@ -686,7 +675,7 @@ tuesdata_eda &lt;- stackoverflow_survey_single_response %&gt;%
 
 .small[
 
-```r
+``` r
 tuesdata_eda &lt;- tuesdata_eda %&gt;% 
     mutate(skills_code = recode(main_branch,
                             `1` = 5,
@@ -718,14 +707,6 @@ tuesdata_eda &lt;- tuesdata_eda %&gt;%
 ```
 ]
 
----
-
-
-## Explore your data: First look 👀
-
-To get a first impression of the data set, we can use some of the functions we discussed in the sessions on *Data Import &amp; Export* and *Data Wrangling Basics*, such as `dim()`, `head()`, or `str()` from `base R`, `glimpse()` from `dplyr`, or `View()` in *RStudio*.
-
-While looking at the the full data set can give us a general understanding of the data and their format and also show if (and how) we may need to wrangle them (further), it is difficult to make sense of the data just by looking at it.
 
 ---
 
@@ -757,7 +738,7 @@ As such, we can use summarizing functions of
 A quick and easy way to check some summary statistics for your data set is the `base R` function `summary()` which can be applied to individual variables...
 
 
-```r
+``` r
 summary(tuesdata_eda$ai_acc)
 ```
 
@@ -772,7 +753,7 @@ summary(tuesdata_eda$ai_acc)
 
 as well as whole data frames:
 
-```r
+``` r
 summary(tuesdata_eda)
 ```
 
@@ -792,22 +773,30 @@ class: middle
 ##  3rd Qu.:3.000   3rd Qu.:1.000   3rd Qu.:3.000   3rd Qu.:4.000  
 ##  Max.   :8.000   Max.   :5.000   Max.   :3.000   Max.   :6.000  
 ##                                  NA&#39;s   :4530    NA&#39;s   :19564  
-##                         ai_acc        ai_complex     ai_threat    
-##  Highly distrust           : 2932   Min.   :1.000   Unsure: 8878  
-##  Somewhat distrust         : 8395   1st Qu.:1.000   No    :30423  
-##  Somewhat trust            :15039   Median :2.000   yes   : 5388  
-##  Highly trust              : 1016   Mean   :2.232   NA&#39;s  :20748  
-##  Neither trust nor distrust: 9920   3rd Qu.:3.000                 
-##  NA&#39;s                      :28135   Max.   :5.000                 
-##                                     NA&#39;s   :28416                 
-##   partici_freq    skills_code                   agec      
-##  Min.   :1.000   Min.   :1.000   18-24 years      :14098  
-##  1st Qu.:4.000   1st Qu.:5.000   25-34 years      :23911  
-##  Median :5.000   Median :5.000   35-44 years      :14942  
-##  Mean   :4.016   Mean   :4.388   45-54 years      : 6249  
-##  3rd Qu.:5.000   3rd Qu.:5.000   55-64 years      : 2575  
-##  Max.   :6.000   Max.   :5.000   65 years or older:  772  
-##  NA&#39;s   :20200                   NA&#39;s             : 2890
+##                         ai_acc        ai_complex   
+##  Highly distrust           : 2932   Min.   :1.000  
+##  Somewhat distrust         : 8395   1st Qu.:1.000  
+##  Somewhat trust            :15039   Median :2.000  
+##  Highly trust              : 1016   Mean   :2.232  
+##  Neither trust nor distrust: 9920   3rd Qu.:3.000  
+##  NA&#39;s                      :28135   Max.   :5.000  
+##                                     NA&#39;s   :28416  
+##   ai_threat      partici_freq    skills_code   
+##  Unsure: 8878   Min.   :1.000   Min.   :1.000  
+##  No    :30423   1st Qu.:4.000   1st Qu.:5.000  
+##  yes   : 5388   Median :5.000   Median :5.000  
+##  NA&#39;s  :20748   Mean   :4.016   Mean   :4.388  
+##                 3rd Qu.:5.000   3rd Qu.:5.000  
+##                 Max.   :6.000   Max.   :5.000  
+##                 NA&#39;s   :20200                  
+##                 agec      
+##  18-24 years      :14098  
+##  25-34 years      :23911  
+##  35-44 years      :14942  
+##  45-54 years      : 6249  
+##  55-64 years      : 2575  
+##  65 years or older:  772  
+##  NA&#39;s             : 2890
 ```
 ]
 
@@ -815,10 +804,10 @@ class: middle
 
 ## Summary statistics with the `datawizard` package 🧙
 
-The [`datawizard` package](https://easystats.github.io/datawizard/) which we introduced as an interesting alternative or addition for data wrangling before also provides a function for summary statistics. This function also offers several options for customizing the output.
+The [`datawizard` package](https://easystats.github.io/datawizard/) provides a function for summary statistics. 
 
 
-```r
+``` r
 library(datawizard)
 
 tuesdata_eda %&gt;%
@@ -834,15 +823,25 @@ class: middle
 .small[
 
 ```
-## Variable     | Mean |   SD | IQR |        Range |  Quartiles | Skewness | Kurtosis |     n | n_Missing
-## ------------------------------------------------------------------------------------------------------
-## age          | 2.63 | 1.58 |   1 | [1.00, 8.00] | 2.00, 3.00 |     1.69 |     3.22 | 65437 |         0
-## main_branch  | 1.50 | 1.02 |   0 | [1.00, 5.00] | 1.00, 1.00 |     1.93 |     2.62 | 65437 |         0
-## ai_select    | 2.37 | 0.85 |   1 | [1.00, 3.00] | 2.00, 3.00 |    -0.80 |    -1.14 | 60907 |      4530
-## ai_sent      | 2.39 | 1.68 |   3 | [1.00, 6.00] | 1.00, 4.00 |     0.77 |    -1.11 | 45873 |     19564
-## ai_complex   | 2.23 | 1.11 |   2 | [1.00, 5.00] | 1.00, 3.00 |     0.62 |    -0.47 | 37021 |     28416
-## partici_freq | 4.02 | 1.43 |   1 | [1.00, 6.00] | 4.00, 5.00 |    -1.25 |     0.11 | 45237 |     20200
-## skills_code  | 4.39 | 1.21 |   0 | [1.00, 5.00] | 5.00, 5.00 |    -1.76 |     1.71 | 65437 |         0
+## Variable     | Mean |   SD | IQR |        Range |  Quartiles
+## ------------------------------------------------------------
+## age          | 2.63 | 1.58 |   1 | [1.00, 8.00] | 2.00, 3.00
+## main_branch  | 1.50 | 1.02 |   0 | [1.00, 5.00] | 1.00, 1.00
+## ai_select    | 2.37 | 0.85 |   1 | [1.00, 3.00] | 2.00, 3.00
+## ai_sent      | 2.39 | 1.68 |   3 | [1.00, 6.00] | 1.00, 4.00
+## ai_complex   | 2.23 | 1.11 |   2 | [1.00, 5.00] | 1.00, 3.00
+## partici_freq | 4.02 | 1.43 |   1 | [1.00, 6.00] | 4.00, 5.00
+## skills_code  | 4.39 | 1.21 |   0 | [1.00, 5.00] | 5.00, 5.00
+## 
+## Variable     | Skewness | Kurtosis |     n | n_Missing
+## ------------------------------------------------------
+## age          |     1.69 |     3.22 | 65437 |         0
+## main_branch  |     1.93 |     2.62 | 65437 |         0
+## ai_select    |    -0.80 |    -1.14 | 60907 |      4530
+## ai_sent      |     0.77 |    -1.11 | 45873 |     19564
+## ai_complex   |     0.62 |    -0.47 | 37021 |     28416
+## partici_freq |    -1.25 |     0.11 | 45237 |     20200
+## skills_code  |    -1.76 |     1.71 | 65437 |         0
 ```
 ]
 
@@ -865,7 +864,7 @@ class: middle
 
 ## Summary statistics with `dplyr`
 
-While creating summary statistics using `summarize()` from `dplyr()` requires writing more code, it is the most flexible option. Another nice benefit of `summarize()` is that it produces a `tibble` which can be used for further analyses or for creating plots or tables.
+While creating summary statistics using `summarize()` from `dplyr()` requires writing more code, it is the most flexible option. Another nice benefit of `summarize()` is that it produces a .highlight[`tibble`] which can be used for further analyses or for creating plots or tables.
 
 ---
 
@@ -873,7 +872,7 @@ While creating summary statistics using `summarize()` from `dplyr()` requires wr
 
 .small[
 
-```r
+``` r
 tuesdata_eda  %&gt;% 
   summarize(
     mean_partici_freq = mean(partici_freq, na.rm = TRUE),
@@ -887,10 +886,11 @@ tuesdata_eda  %&gt;%
 
 ```
 ## # A tibble: 1 × 5
-##   mean_partici_freq sd_partici_freq var_partici_freq min_partici_freq
-##               &lt;dbl&gt;           &lt;dbl&gt;            &lt;dbl&gt;            &lt;dbl&gt;
-## 1              4.02            1.43             2.04                1
-## # ℹ 1 more variable: max_partici_freq &lt;dbl&gt;
+##   mean_partici_freq sd_partici_freq var_partici_freq
+##               &lt;dbl&gt;           &lt;dbl&gt;            &lt;dbl&gt;
+## 1              4.02            1.43             2.04
+## # ℹ 2 more variables: min_partici_freq &lt;dbl&gt;,
+## #   max_partici_freq &lt;dbl&gt;
 ```
 ]
 
@@ -898,10 +898,10 @@ tuesdata_eda  %&gt;%
 
 ## `dplyr::group_by()`
 
-The `dplyr` function `group_by()` creates data frames (tibbles) that are grouped by one or more variables. This can, e.g., be used to produce grouped summary statistics.
+The `dplyr` function `group_by()` creates data frames (tibbles) that are grouped by one or more variables. 
 
 
-```r
+``` r
 tuesdata_eda  %&gt;% 
   filter(!is.na(skills_code)) %&gt;% # only use cases where skills_code is not missing
   group_by(skills_code) %&gt;%
@@ -931,17 +931,18 @@ class: middle
 ## 3           3              3.98            1.43             2.06
 ## 4           4              4.17            1.37             1.87
 ## 5           5              4.01            1.45             2.10
-## # ℹ 2 more variables: min_partici_freq &lt;dbl&gt;, max_partici_freq &lt;dbl&gt;
+## # ℹ 2 more variables: min_partici_freq &lt;dbl&gt;,
+## #   max_partici_freq &lt;dbl&gt;
 ```
 
 ---
 
 ## Grouping and ungrouping
 
-Keep in mind that `group_by()` changes the class of a dataframe. To avoid (accidentally) continuing to perform operations groupwise, it is necessary to use the `ungroup()` function (typically at the end of a pipe). In that way, this function is similar to the *Split by* option in *SPSS*.
+Keep in mind that `group_by()` changes the class of a dataframe. To avoid (accidentally) continuing to perform operations groupwise, it is necessary to use the .highlight[`ungroup()`] function (typically at the end of a pipe). 
 
 
-```r
+``` r
 class(tuesdata_eda)
 ```
 
@@ -949,7 +950,7 @@ class(tuesdata_eda)
 ## [1] &quot;tbl_df&quot;     &quot;tbl&quot;        &quot;data.frame&quot;
 ```
 
-```r
+``` r
 tuesdata_eda %&gt;% 
   group_by(skills_code) %&gt;% 
   class()
@@ -963,20 +964,32 @@ tuesdata_eda %&gt;%
 
 ## `dplyr::across()`
 
-To produce grouped summary statistics for multiple variables we can use the `dplyr` function `across()` which we already saw in action in the second data wrangling session. *Note*: We only use cases without missing data for any of the variables here (= listwise deletion).
+To produce grouped summary statistics for multiple variables we can use the `dplyr` function `across()`  *Note*: We only use cases without missing data for any of the variables here (= listwise deletion).
 
 
-```r
+``` r
 tuesdata_eda %&gt;%
-  select(skills_code,
-         starts_with(&quot;ai&quot;)) %&gt;% 
-  select(-ai_threat, -ai_acc) %&gt;% 
-  drop_na() %&gt;% 
-  group_by(skills_code) %&gt;%
-  summarize(across(starts_with(&quot;ai&quot;), 
-                   list(mean = mean, 
-                        sd = sd), 
-                   .names = &quot;{col}_{fn}&quot;))
+#-- Select only the &#39;skills_code&#39; column and all columns that start with &quot;ai&quot;
+  select(skills_code, starts_with(&quot;ai&quot;), agec) %&gt;%
+#-- Remove the columns &#39;ai_threat&#39; and &#39;ai_acc&#39; from the selection
+  select(-ai_threat, -ai_acc) %&gt;%
+  
+#-- Drop rows that contain any NA (missing) values
+  drop_na() %&gt;%
+  
+#-- Group the data by the &#39;age&#39; column
+  group_by(agec) %&gt;%
+#-- For each group, summarize the AI-related columns
+  summarize(
+    across(
+      starts_with(&quot;ai&quot;),        # Apply functions to all columns starting with &quot;ai&quot;
+      list(
+        mean = mean,            # Calculate mean
+        sd = sd                 # Calculate standard deviation
+      ),
+      .names = &quot;{col}_{fn}&quot;     # Name new columns like &quot;ai_future_mean&quot;, &quot;ai_future_sd&quot;, etc.
+    )
+  )
 ```
 
 .right[↪️]
@@ -987,14 +1000,15 @@ class: middle
 
 
 ```
-## # A tibble: 5 × 7
-##   skills_code ai_select_mean ai_select_sd ai_sent_mean ai_sent_sd
-##         &lt;dbl&gt;          &lt;dbl&gt;        &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;
-## 1           1              3            0         2.42       1.74
-## 2           2              3            0         2.30       1.64
-## 3           3              3            0         2.45       1.76
-## 4           4              3            0         2.59       1.82
-## 5           5              3            0         2.42       1.74
+## # A tibble: 6 × 7
+##   agec         ai_select_mean ai_select_sd ai_sent_mean ai_sent_sd
+##   &lt;ord&gt;                 &lt;dbl&gt;        &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;
+## 1 18-24 years               3            0         2.33       1.70
+## 2 25-34 years               3            0         2.42       1.74
+## 3 35-44 years               3            0         2.51       1.76
+## 4 45-54 years               3            0         2.50       1.77
+## 5 55-64 years               3            0         2.50       1.77
+## 6 65 years or…              3            0         2.69       1.81
 ## # ℹ 2 more variables: ai_complex_mean &lt;dbl&gt;, ai_complex_sd &lt;dbl&gt;
 ```
 
@@ -1005,31 +1019,33 @@ class: middle
 A simple way of looking at frequencies (e.g., for categorical variables) that we have already seen before is the `base R` function `table()`.
 
 
-```r
+``` r
 table(tuesdata_eda$agec)
 ```
 
 ```
 ## 
-##       18-24 years       25-34 years       35-44 years       45-54 years 
-##             14098             23911             14942              6249 
-##       55-64 years 65 years or older 
-##              2575               772
+##       18-24 years       25-34 years       35-44 years 
+##             14098             23911             14942 
+##       45-54 years       55-64 years 65 years or older 
+##              6249              2575               772
 ```
 
 If you also want to include `NA` in the frequency counts, you need to specify the argument `useNA = &quot;always&quot;`.
 
 
-```r
+``` r
 table(tuesdata_eda$agec, useNA = &quot;always&quot;)
 ```
 
 ```
 ## 
-##       18-24 years       25-34 years       35-44 years       45-54 years 
-##             14098             23911             14942              6249 
-##       55-64 years 65 years or older              &lt;NA&gt; 
-##              2575               772              2890
+##       18-24 years       25-34 years       35-44 years 
+##             14098             23911             14942 
+##       45-54 years       55-64 years 65 years or older 
+##              6249              2575               772 
+##              &lt;NA&gt; 
+##              2890
 ```
 
 ---
@@ -1042,7 +1058,7 @@ If you want proportions instead of raw counts, you can use the `base R` function
 
 .small[
 
-```r
+``` r
 prop.table(table(tuesdata_eda$ai_acc))
 ```
 
@@ -1056,7 +1072,7 @@ prop.table(table(tuesdata_eda$ai_acc))
 ##                 0.26593748
 ```
 
-```r
+``` r
 prop.table(table(tuesdata_eda$ai_acc , useNA = &quot;always&quot;))
 ```
 
@@ -1078,7 +1094,7 @@ prop.table(table(tuesdata_eda$ai_acc , useNA = &quot;always&quot;))
 If you want fewer decimals places in the output, you can wrap the the `prop.table()` function in a `round()` call.
 
 
-```r
+``` r
 round(prop.table(table(tuesdata_eda$ai_acc, useNA = &quot;always&quot;)), 3) # rounded to 3 decimal places
 ```
 
@@ -1095,7 +1111,7 @@ round(prop.table(table(tuesdata_eda$ai_acc, useNA = &quot;always&quot;)), 3) # r
 Or if you want percentages...
 
 
-```r
+``` r
 round((prop.table(table(tuesdata_eda$ai_acc, useNA = &quot;always&quot;)) * 100), 2)
 ```
 
@@ -1115,9 +1131,9 @@ round((prop.table(table(tuesdata_eda$ai_acc, useNA = &quot;always&quot;)) * 100)
 
 The [`janitor` package](https://github.com/sfirke/janitor) that we briefly mentioned in the first session on data wrangling also provides the [`tabyl()` function](https://sfirke.github.io/janitor/articles/tabyls.html) for creating frequency and proportion tables:
 
-.small[
 
-```r
+
+``` r
 library(janitor)
 
 threat_stats &lt;- tuesdata_eda %&gt;% 
@@ -1140,10 +1156,10 @@ threat_stats
 
 ## Frequencies and proportions with `janitor::tabyl()`
 
-A nice thing about `tabyl()` is that is produces a (special type of) data frame which we can, e.g., use for plotting or creating tables (which we will discuss later on).
+A nice thing about `tabyl()` is that is produces a (special type of) data frame which we can use for plotting or creating tables.
 
 
-```r
+``` r
 class(threat_stats)
 ```
 
@@ -1158,7 +1174,7 @@ class(threat_stats)
 We can also use `group_by()` and `summarize()` to get frequencies and proportions for variables in our data set.
 
 
-```r
+``` r
 tuesdata_eda  %&gt;% 
   filter(!is.na(ai_threat)) %&gt;% 
   group_by(ai_threat) %&gt;% 
@@ -1180,10 +1196,10 @@ tuesdata_eda  %&gt;%
 
 ## Frequencies and proportions with `dplyr`
 
-Instead of using `group_by` and `summarize()` to get frequency counts, we can also use `count()` from `dplyr` as a shorthand.
+Instead of using `group_by` and `summarize()` to get frequency counts, we can also use .highlight[`count()`] from `dplyr` as a shorthand.
 
 
-```r
+``` r
 tuesdata_eda %&gt;% 
   filter(!is.na(ai_threat)) %&gt;% 
   count(ai_threat) %&gt;% 
@@ -1206,7 +1222,7 @@ tuesdata_eda %&gt;%
 
 There are typically two types of outputs you can produce with `R` for further use in reports or publications: tables and plots. 
 
-We will cover the creation of plots in the following session(s) on data visualization. However, as summary statistics, frequencies, and proportions are often presented in tables, we will briefly discuss how to create tables as output in `R` in the following.
+However, as summary statistics, frequencies, and proportions are often presented in tables, we will briefly discuss how to create tables as output in `R` in the following.
 
 As with almost everything in `R`, there are many options (read: packages) for creating tables. We will show examples from three popular options:
 - [`stargazer`](https://cran.r-project.org/web/packages/stargazer/index.html)
@@ -1227,7 +1243,7 @@ If we, e.g., want to create a summary statistics table as text output (e.g., for
 **NB**: As the main `stargazer()` function does not work with tibbles, we need to convert our data to a regular data frame. 
 
 
-```r
+``` r
 library(stargazer)
 
 tuesdata_eda  %&gt;% 
@@ -1265,7 +1281,7 @@ class: middle
 `stargazer` also supports `HTML` and `LaTeX` as output formats. We can export the output for further use (e.g., with our `LaTeX` editor of choice).
 
 
-```r
+``` r
 # We create a directory for output files first
 dir.create(&quot;./output&quot;)
 
@@ -1281,7 +1297,7 @@ tuesdata_eda   %&gt;%
 ```
 
 .small[
-*Note*: If you look at the help file for the `stargazer()` function (via `?stargazer`), you will see that it provides a lot of customization options.
+*Note*: help file for the `stargazer()` function (via `?stargazer`)
 ]
 
 
@@ -1289,7 +1305,7 @@ tuesdata_eda   %&gt;%
 
 ## Relationships between variables
 
-In addition to checking summary statistics for individual variables, another thing that you quite possibly also want to look at as part of your EDA are the relationships between (specific) variables in your data set. There are many ways to do so and the appropriate choice of methods, of course, depends on the types of variables you want to explore. In the following, we will briefly discuss some options for two methods of exploring relationships between variables:
+In the following, we will briefly discuss some options for two methods of exploring relationships between variables:
 
 - crosstabulation (for categorical variables)
 
@@ -1299,10 +1315,10 @@ In addition to checking summary statistics for individual variables, another thi
 
 ## Crosstabs
 
-You can also use the `base R` functions `table()` and `prop.table()` we have used before for creating univariate frequency and proportion tables to generate crosstabs.
+You can use the `base R` functions `table()` and `prop.table()`
 
 
-```r
+``` r
 table(tuesdata_eda$ai_complex, tuesdata_eda$agec) # rows, columns
 ```
 
@@ -1323,7 +1339,7 @@ table(tuesdata_eda$ai_complex, tuesdata_eda$agec) # rows, columns
 ##   5                22
 ```
 
-```r
+``` r
 round(prop.table(table(tuesdata_eda$ai_complex, tuesdata_eda$agec))*100, 2)
 ```
 
@@ -1352,13 +1368,21 @@ round(prop.table(table(tuesdata_eda$ai_complex, tuesdata_eda$agec))*100, 2)
 We can use also functions from `dplyr` to create crosstabs including frequencies.
 
 
-```r
-tuesdata_eda %&gt;% 
+``` r
+tuesdata_eda %&gt;%
+  
+#-- Filter out rows where &#39;ai_complex&#39; or &#39;agec&#39; is missing (i.e., keep only complete cases)
   filter(!is.na(ai_complex),
-         !is.na(agec)) %&gt;% 
-  count(agec, ai_complex) %&gt;% 
-  pivot_wider(names_from = ai_complex,
-              values_from = n)
+         !is.na(agec)) %&gt;%
+  
+#-- Count how many times each combi of &#39;agec&#39; (age category) and &#39;ai_complex&#39; appears
+  count(agec, ai_complex) %&gt;%
+  
+#-- Reshape the data: make each unique value of &#39;ai_complex&#39; a separate column
+  pivot_wider(
+    names_from = ai_complex,   # Column values in &#39;ai_complex&#39; become new column names
+    values_from = n            # Use counts (`n`) as the values in the new columns
+  )
 ```
 
 ```
@@ -1373,18 +1397,15 @@ tuesdata_eda %&gt;%
 ## 6 65 years or older    50    86    66    11    22
 ```
 
-.small[
-*Note*: We have only briefly mentioned the function in the first session on data wrangling (when introducing the concept of tidy data), but - as you might guess from its name - the function `pivot_wider()`, which is part of the [`tidyr` package](https://tidyr.tidyverse.org/), changes the format of a data set from long to wide.
-]
+
 
 ---
 
 ## Crosstabs with `dplyr`
+Create crosstabs including percentages
 
-We can also use functions from `dplyr` in a similar fashion as we have done for a single variable to create crosstabs including percentages.
 
-
-```r
+``` r
 tuesdata_eda %&gt;% 
   filter(!is.na(ai_complex),
          !is.na(agec)) %&gt;% 
@@ -1411,11 +1432,11 @@ tuesdata_eda %&gt;%
 
 ## Crosstabs with the `janitor` package
 
-The `tabyl()` function from the `janitor` package provides quite a few options for crosstabs. We will only show one extended example here, but you can learn more in the [`tabyl` vignette](https://cran.r-project.org/web/packages/janitor/vignettes/tabyls.html).
+The `tabyl()` function from the `janitor` package provides quite a few options for crosstabs. 
 
 .small[
 
-```r
+``` r
 library(janitor)
 
 tuesdata_eda %&gt;% 
@@ -1463,7 +1484,9 @@ Another quite very versatile option for creating crosstabs as well as output bas
 We can use the `summary()` function from `base R` in combination with `table()` to perform a chi-square test.
 
 
-```r
+
+``` r
+#--Are age and AI acceptance independent? (Does AI acceptance differ across age groups?)
 summary(table(tuesdata_eda $agec, tuesdata_eda$ai_acc ))
 ```
 
@@ -1481,7 +1504,7 @@ summary(table(tuesdata_eda $agec, tuesdata_eda$ai_acc ))
 Most of the other packages that include functions for crosstabs that we mentioned before can also be used for chi-square tests: For example, the `janitor` package.
 
 
-```r
+``` r
 tuesdata_eda %&gt;% 
   filter(!is.na(ai_acc),
          !is.na(agec)) %&gt;% 
@@ -1499,21 +1522,13 @@ tuesdata_eda %&gt;%
 
 ---
 
-## Correlations
-
-Again, as with the crosstabs examples, there are many different options for calculating and displaying correlations in `R`. In addition to the `base R` functions, we will look at two packages in this part: [`corrr`](https://corrr.tidymodels.org/) and [`correlation`](https://github.com/easystats/correlation).
-
-*Note*: While we will not cover that in this session, `corrr` and `correlation` also offer some nice options for plotting correlations.
-
----
-
 ## Correlations with `base R`
 
-The `base R` function `cor()` computes the correlation coefficient(s) between two or more variables. This function can be used to calculate *Pearson&#39;s r*, *Kendall&#39;s tau*, and *Spearman&#39;s rho*. We also need to specify how we want to deal with missing values (e.g., use pairwise complete observations). For example, let&#39;s look at the correlations between the trust variables in our data set:
+The `base R` function `cor()` computes the correlation coefficient(s) between two or more variables. This function can be used to calculate *Pearson&#39;s r*, *Kendall&#39;s tau*, and *Spearman&#39;s rho*. We also need to specify how we want to deal with missing values (e.g., use pairwise complete observations). For example, let&#39;s look at the correlations between the coding skills, age and participation frequency:
 
 .small[
 
-```r
+``` r
 skills &lt;- tuesdata_eda  %&gt;% 
   select(skills_code,age,partici_freq)
 
@@ -1539,7 +1554,7 @@ The [`corrr` package](https://corrr.tidymodels.org/) is part of the [`tidymodels
 
 .small[
 
-```r
+``` r
 library(corrr)
 
 correlate(skills)
@@ -1563,7 +1578,7 @@ The `corrr` package provides several functions for tweaking/optimizing the outpu
 
 .small[
 
-```r
+``` r
 skills %&gt;% 
   correlate() %&gt;% 
   shave() %&gt;% 
@@ -1585,7 +1600,7 @@ skills %&gt;%
 The [`correlation` package](https://easystats.github.io/correlation/) is part of the [`easystats` collection of packages](https://easystats.github.io/easystats/) (also called the `Easyverse`). It provides a much wider range of correlation types than the `base R` function `cor()` and the `correlate()` function from the `corrr` package (e.g., biserial and tetrachoric correlations for factors). Its core is the `correlation()` function.
 
 
-```r
+``` r
 library(correlation)
 
 correlation(skills)
@@ -1601,11 +1616,17 @@ class: middle
 ```
 ## # Correlation Matrix (pearson-method)
 ## 
-## Parameter1  |   Parameter2 |         r |         95% CI |      t |    df |         p
-## ------------------------------------------------------------------------------------
-## skills_code |          age |     -0.18 | [-0.19, -0.17] | -47.26 | 65435 | &lt; .001***
-## skills_code | partici_freq | -2.54e-04 | [-0.01,  0.01] |  -0.05 | 45235 | 0.957    
-## age         | partici_freq |     -0.04 | [-0.05, -0.03] |  -7.80 | 45235 | &lt; .001***
+## Parameter1  |   Parameter2 |         r |         95% CI |      t
+## ----------------------------------------------------------------
+## skills_code |          age |     -0.18 | [-0.19, -0.17] | -47.26
+## skills_code | partici_freq | -2.54e-04 | [-0.01,  0.01] |  -0.05
+## age         | partici_freq |     -0.04 | [-0.05, -0.03] |  -7.80
+## 
+## Parameter1  |    df |         p
+## -------------------------------
+## skills_code | 65435 | &lt; .001***
+## skills_code | 45235 | 0.957    
+## age         | 45235 | &lt; .001***
 ## 
 ## p-value adjustment method: Holm (1979)
 ## Observations: 45237-65437
@@ -1651,7 +1672,7 @@ We could go on... The previous three examples all come from the [`datasauRus` pa
 Importantly, the x- and y-variables in these `datasaurus_dozen` data set also all have the same means and standard deviations.
 
 
-```r
+``` r
 datasaurus_dozen %&gt;% 
   group_by(dataset) %&gt;%
   summarize(
@@ -1661,6 +1682,25 @@ datasaurus_dozen %&gt;%
     sd_y = sd(y), 
     corr = cor(x, y, method = &quot;pearson&quot;)
   )
+```
+
+```
+## # A tibble: 13 × 6
+##    dataset    mean_x mean_y  sd_x  sd_y    corr
+##    &lt;chr&gt;       &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+##  1 away         54.3   47.8  16.8  26.9 -0.0641
+##  2 bullseye     54.3   47.8  16.8  26.9 -0.0686
+##  3 circle       54.3   47.8  16.8  26.9 -0.0683
+##  4 dino         54.3   47.8  16.8  26.9 -0.0645
+##  5 dots         54.3   47.8  16.8  26.9 -0.0603
+##  6 h_lines      54.3   47.8  16.8  26.9 -0.0617
+##  7 high_lines   54.3   47.8  16.8  26.9 -0.0685
+##  8 slant_down   54.3   47.8  16.8  26.9 -0.0690
+##  9 slant_up     54.3   47.8  16.8  26.9 -0.0686
+## 10 star         54.3   47.8  16.8  26.9 -0.0630
+## 11 v_lines      54.3   47.8  16.8  26.9 -0.0694
+## 12 wide_lines   54.3   47.8  16.8  26.9 -0.0666
+## 13 x_shape      54.3   47.8  16.8  26.9 -0.0656
 ```
 
 .right[↪️]
@@ -1707,13 +1747,6 @@ For that reason (and because it is fun and `R` has a lot to offer in that regard
 
 ---
 
-## Other packages for EDA
-
-The [`summarytools` package](https://github.com/dcomtois/summarytools) provides quite a lot of functionalities for EDA, provides an exhaustive [introduction](https://htmlpreview.github.io/?https://github.com/dcomtois/summarytools/blob/master/doc/introduction.html), and also [works nicely with `R Markdown`](https://htmlpreview.github.io/?https://github.com/dcomtois/summarytools/blob/master/doc/rmarkdown.html) (which we will cover on Thursday).
-
-A (minor) downside of this package is that you need to install additional software to use it on *MacOS* and *Linux* (it only works out-of-the-box on *Windows*).
-
----
 
 ## Other packages for EDA
 
