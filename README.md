@@ -39,7 +39,7 @@ By the end of the course participants should be:
 |-------------|-----------------|--------------------------------------|
 | **Saturday** | **12:00 - 13:00** | **[Data Wrangling 2.0](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/167de8e72ac12083028f2eb87f2993fd7db07403/slides/2_2_Data_Wrangling_Part2.html)** |
 | *Saturday* | *13:00 - 13:15*  | *Break*                             |
-| **Saturday** | **13:15 - 14:00** | **Exploratory Analyses**            |
+| **Saturday** | **13:15 - 14:00** | **[Exploratory Analyses](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/162e09d16c87835229441304022ff21b449fcc6f/slides/3_1_Exploratory_Data_Analysis.html)**            |
 |*Saturday*     | *14:00 - 15:00* | *Lunch Break*                       |
 | **Saturday** | **15:00 - 16:00** | **Data Visualization**      |
 | *Saturday* | *16:00 - 16:15*  | *Break*                             |
