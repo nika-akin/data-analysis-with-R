@@ -43,7 +43,7 @@ By the end of the course participants should be:
 |*Saturday*     | *14:00 - 15:00* | *Lunch Break*                       |
 | **Saturday** | **15:00 - 16:00** | **[Data Visualization](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/5088b30f1071c2d65cdbcef5f4f98825b2933938/slides/3_2_Data_Visualization_Part_1.html)**      |
 | *Saturday* | *16:00 - 16:15*  | *Break*                             |
-| **Saturday** | **16:15 - 17:00**  | **Relational Data**     |
+| **Saturday** | **16:15 - 17:00**  | **[Relational Data](https://rawcdn.githack.com/nika-akin/data-analysis-with-R/833b6231236b77af321b1064b12843d9786c6adf/slides/2_3_Appendix_Relational_Data.html)**     |
 
 ---
 
