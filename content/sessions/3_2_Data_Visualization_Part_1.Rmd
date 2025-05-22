@@ -43,13 +43,6 @@ There's more that we won't cover:
 
 ---
 
-### Data for this session
-
-```{r eval=FALSE}
-df<- stackoverflow_survey_single_response
-```
-
-
 ```{r load_tuesdata, echo=FALSE}
 library(tidyverse)
 library(dplyr)
@@ -88,7 +81,6 @@ df <- stackoverflow_survey_single_response %>%
   )
 ```
 
----
 ```{r cleaning-2, echo=FALSE}
 # Recode main_branch
 df <- df %>%
@@ -211,8 +203,9 @@ df <- df %>%
 ```
 
 ---
+### Data for this session
 ```{r}
-amount_topcountries <- df %>%
+amount_topcountries <- stackoverflow_survey_single_response %>%
   filter(!is.na(country)) %>% 
   group_by(country) %>%
   summarise(Amount = n()) %>%
@@ -224,9 +217,6 @@ amount_topcountries <- df %>%
 
 amount_topcountries %>% head()
 ```
-
-
-
 
 ---
 
@@ -264,19 +254,21 @@ par(mar = c(5, 4, 4, 2))
 
 ---
 
-## Ok, but let's start from the beginning
+## Let's start from the beginning
 The most basic function to plot in R is `plot()`.
 
 .pull-left[
 ```{r basic_plot, eval = FALSE}
-options(scipen = 999)
+options(scipen = 999) #prevent exponent. scientific notation
 
 
 plot_df <- stackoverflow_survey_single_response %>% 
-  filter(!is.na(converted_comp_yearly), !is.na(years_code))
+  filter(!is.na(converted_comp_yearly),
+         !is.na(years_code))
 
 
-plot(plot_df$years_code, plot_df$converted_comp_yearly)
+plot(plot_df$years_code,
+     plot_df$converted_comp_yearly)
 
 
 ```
