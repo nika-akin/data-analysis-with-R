@@ -56,26 +56,32 @@ Source: [*Packages*](https://github.com/qinwf/awesome-R#data-packages)
 
 ---
 
-## Our jou`R`neys
+## My jou`R`ney
 
 .pull-left[
-```{r veronika-pic, echo = FALSE, fig.height=100, fig.width=100,out.width = "100%"}
+```{r veronika-pic, echo = FALSE, fig.height=200, fig.width=200,out.width = "200%"}
 woRkshoptools::include_picture("./interest.png")
 ```
 ]
+<br>
 
-.pull-right[
+.small[.pull-right[
 - ITZ (Institut für Technikzukünfte) working at the EU-Projekt **SoMe4Dem** (Social Media for Democracy)
 ]
 
-.small[
+]
+.small[.pull-right[
 - Looking for a Bachelor/Master's thesis, let me know
+]
+]
 
+<br>
 
+Contact:<br>
 
 [veronika.batzdorfer@kit.edu](mailto:veronika.batzdorfer@kit.edu) |
 [KIT website](https://sociology.itz.kit.edu/21_138.php)
-]
+
  
 
 ---
