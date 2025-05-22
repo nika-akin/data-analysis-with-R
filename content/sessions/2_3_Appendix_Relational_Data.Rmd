@@ -1,8 +1,8 @@
 ---
 title: "Data Literacy: Introduction to R "
-subtitle: "Appendix: Relational Data"
+subtitle: "Relational Data"
 author: "Veronika Batzdorfer"
-date: "2022-08-16"
+date: "2025-05-24"
 presenter: Veronika
 ---
 layout: true 
@@ -12,7 +12,7 @@ layout: true
 
 ---
 
-## Relational data
+## Combining data
 
 ```{r libraries, include=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -21,32 +21,34 @@ library(knitr)
 library(kableExtra)
 ```
 
+Combine different data sets (e.g., data on the same subjects from different sources). 
 
-In some cases, you may need to combine different data sets (e.g., if you have seperate data sets from waves of a longitudinal survey study or data on the same subjects from different sources). 
+The simplest case is:
 
-The simplest case is that the data frames you want to combine either have the same cases/rows in the same order but different variables/columns, or the same columns/variables (with the same names) but different cases/rows.
+- have the same **cases/rows** in the same order but different variables/columns 
+- have the same **columns/variables** (with the same names) but different cases/rows
 
-In those cases, you can use the `base R` functions `rbind()` to add/combine rows or `cbind()` to add/combine columns, or, better yet, `bind_rows()` or `bind_cols()` from `dplyr`.
+then -> use `base R` functions .highlight[`rbind()`] to add/combine rows or .highlight[`cbind()`] to add/combine columns, or, better yet, `bind_rows()` or `bind_cols()` from `dplyr`.
 
 ---
 
 ## Relational data
 
-For all other situations, you can use the `merge()` function from `base R`. However, a more convenient option is using the the so-called *two-table verbs* from `dplyr` which allow you to combine two (or more) tabular data sets in various ways. We will look at two categories of those verbs in the following:
+Use the so-called *two-table verbs* from `dplyr` which allow you to combine two (or more) tabular data sets in various ways. 
 
 1. Mutating joins  
 
 2. Filtering joins  
 
-If you have ever worked with (or at least seen) `SQL` code, many of the following things will look familiar. For a more in-depth introduction, you can have a look at the [chapter on relational data](https://r4ds.had.co.nz/relational-data.html) in *R for Data Science*.
+If you have ever worked with  `SQL` code, many of the following things will look familiar. For a more, you can have a look at the [chapter on relational data](https://r4ds.had.co.nz/relational-data.html) in *R for Data Science*.
 
 ---
 
 ## Superhero data `r ji("bat")``r ji("zap")``r ji("spider_web")``r ji("merman")`
 
-We illustrate the different joins from `dlpyr`, with the [Super Heroes data set from *Kaggle*](https://www.kaggle.com/claudiodavi/superhero-set).
+We illustrate the different joins from `dplyr`, with the [Super Heroes data set from *Kaggle*](https://www.kaggle.com/claudiodavi/superhero-set).
 
-```{r superhero-data, include = F}
+```{r superhero-data, include = F, message=FALSE, warning=FALSE}
 heroes <- read_csv("./data/heroes_information.csv") %>% 
   select(name, Alignment, Race, Publisher) %>% 
   rename(Name = name) %>%
