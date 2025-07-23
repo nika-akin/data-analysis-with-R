@@ -1,0 +1,604 @@
+---
+title: "Sydney Beach Water Quality Analysis - 2024"
+author: "R User"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float: true
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    code_download: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+options(scipen = 15)
+```
+
+```{r load-wrangle-data, echo = FALSE}
+library("dplyr")
+library("readr")
+library("forcats")
+library("tidyr")
+library("ggplot2")
+library("stringr")
+library("janitor")
+library("lubridate")
+library("pander")
+library("broom")
+
+# Load weather data - filtered for 2024
+weather <- read_csv("weather.csv") %>%
+  remove_empty(which = c("rows", "cols")) %>%
+  filter(!str_detect(date, "#+")) %>%
+  mutate(
+    date = as.Date(date),
+    max_temp_C = as.numeric(max_temp_C),
+    min_temp_C = as.numeric(min_temp_C),
+    precipitation_mm = as.numeric(precipitation_mm)
+  ) %>%
+  filter(!is.na(date)) %>%
+  # Filter for 2024 only
+  filter(year(date) == 2024) %>%
+  mutate(
+    temp_range = max_temp_C - min_temp_C,
+    avg_temp = (max_temp_C + min_temp_C) / 2,
+    season = case_when(
+      month(date) %in% c(12, 1, 2) ~ "Summer",
+      month(date) %in% c(3, 4, 5) ~ "Autumn",
+      month(date) %in% c(6, 7, 8) ~ "Winter",
+      month(date) %in% c(9, 10, 11) ~ "Spring"
+    )
+  )
+
+# Load water quality data - filtered for 2024
+water_quality <- read_csv("water_quality.csv") %>%
+  remove_empty(which = c("rows", "cols")) %>%
+  clean_names() %>%
+  filter(!str_detect(date, "#+")) %>%
+  mutate(
+    date = as.Date(date),
+    enterococci_cfu_100ml = as.numeric(enterococci_cfu_100ml),
+    water_temperature_c = as.numeric(water_temperature_c),
+    conductivity_ms_cm = as.numeric(conductivity_ms_cm)
+  ) %>%
+  filter(!is.na(date)) %>%
+  # Filter for 2024 only
+  filter(year(date) == 2024) %>%
+  mutate(
+    enterococci_category = case_when(
+      enterococci_cfu_100ml <= 40 ~ "Excellent",
+      enterococci_cfu_100ml <= 200 ~ "Good",
+      enterococci_cfu_100ml <= 500 ~ "Fair",
+      TRUE ~ "Poor"
+    )
+  )
+
+# Merge datasets (both now contain only 2024 data)
+combined_data <- weather %>%
+  inner_join(water_quality, by = "date") %>%
+  filter(!is.na(max_temp_C), !is.na(enterococci_cfu_100ml), !is.na(water_temperature_c), !is.na(conductivity_ms_cm))
+
+# Create additional categories and log-transformed variables for analysis
+combined_data <- combined_data %>%
+  mutate(
+    precip_category = case_when(
+      precipitation_mm == 0 ~ "No Rain",
+      precipitation_mm <= 5 ~ "Light Rain",
+      precipitation_mm <= 20 ~ "Moderate Rain",
+      TRUE ~ "Heavy Rain"
+    ),
+    precip_category = factor(precip_category,
+      levels = c("No Rain", "Light Rain", "Moderate Rain", "Heavy Rain")
+    ),
+    season = factor(season, levels = c("Spring", "Summer", "Autumn", "Winter")),
+    conductivity_category = case_when(
+      conductivity_ms_cm < 40 ~ "Low",
+      conductivity_ms_cm <= 50 ~ "Normal",
+      conductivity_ms_cm <= 60 ~ "High",
+      TRUE ~ "Very High"
+    ),
+    conductivity_category = factor(conductivity_category,
+      levels = c("Low", "Normal", "High", "Very High")
+    ),
+
+    log_enterococci = log(enterococci_cfu_100ml + 1),
+    log_avg_temp = log(avg_temp + 1),
+    log_precipitation_mm = log(precipitation_mm + 1),
+    log_conductivity_ms_cm = log(conductivity_ms_cm + 1)
+  )
+```
+
+# Context
+
+Enterococci are facultative anaerobic bacteria, commonly found in the gastrointestinal tract of humans and animals, as well as in soil, water, and food. They are part of the normal gut microbiota but can become opportunistic pathogens, causing infections when the immune system is compromised.
+
+A leading cause of healthcare-associated infections:
+
+Urinary tract infections (UTIs)\
+Bacteremia (bloodstream infections)\
+Endocarditis (heart infections)\
+Wound infections\
+Intra-abdominal and pelvic infections
+
+Key Characteristics:
+
+Growth condition: Thrive in a wide range of temperatures (10–45°C) and pH levels, and can tolerate high salt concentrations (e.g., 6.5% NaCl/ Sea water is \~ 3.5%).\
+Resilience: Highly adaptable, surviving harsh environmental conditions, including desiccation and exposure to disinfectants. Enterococci are notorious for intrinsic and acquired resistance to multiple antibiotics.
+
+# The data
+
+This analysis examines the relationship between weather conditions and water quality at Sydney beaches during 2024. We investigate how temperature, precipitation, conductivity, and seasonal patterns affect enterococci levels - a key indicator of bacterial contamination in recreational waters.
+
+The combined dataset contains `r nrow(combined_data)` observations from `r min(combined_data$date)` to `r max(combined_data$date)` (2024 data only). **Enterococci** is measured in Colony Forming Units per 100mL, with levels categorized as:
+
+-   **Excellent**: ≤ 40 CFU/100mL
+-   **Good**: 41-200 CFU/100mL
+-   **Fair**: 201-500 CFU/100mL
+-   **Poor**: \> 500 CFU/100mL
+
+**Conductivity** is measured in mS/cm and indicates the water's ability to conduct electrical current, which is influenced by dissolved salts and minerals.
+
+## Research hypotheses
+
+1.  **H1: Temperature Effect** - Higher temperatures are associated with increased enterococci levels due to enhanced bacterial growth conditions
+2.  **H2: Precipitation Impact** - Rainfall affects water quality through runoff contamination and dilution effects
+3.  **H3: Seasonal Variation** - Water quality varies significantly across seasons due to combined temperature and weather patterns
+4.  **H4: Conductivity Relationship** - Conductivity levels are associated with enterococci levels, potentially indicating pollution sources or salinity effects
+
+## Missing data
+
+The dataset is relatively complete with minimal missing values in key variables.
+
+## Summary statistics
+
+```{r summarystats}
+combined_data %>%
+  dplyr::select(avg_temp, precipitation_mm, enterococci_cfu_100ml, water_temperature_c, conductivity_ms_cm) %>%
+  summary() %>%
+  pander()
+```
+The average daily temperature throughout 2024 was 18.72C, with a range from 8.10C to 29.70C Precipitation was generally low, with a median of 0.40 mm, although maximum daily rainfall reached 30.30 mm. Enterococci concentrations are highly right-skewed, indicated by a mean (55.87 CFU/100mL) substantially higher than the median (4.00 CFU/100mL), with a maximum value reaching 15,000 CFU/100mL. This skewness suggests that while typical bacterial counts are low, extreme contamination events do occur. Water temperature averaged 19.83C. Conductivity measurements are concentrated at the higher end of the scale, with a mean of 50,532 mS/cm and a median of 53,200 mS/cm.
+```{r vis-miss}
+library(visdat)
+vis_miss(combined_data)
+```
+
+# Exploring the data
+
+## Water quality distribution
+
+```{r categories}
+combined_data %>%
+  tabyl(enterococci_category) %>%
+  adorn_totals("row") %>%
+  adorn_pct_formatting() %>%
+  knitr::kable()
+```
+
+```{r categories-plot}
+combined_data %>%
+  ggplot(aes(x = enterococci_category, fill = enterococci_category)) +
+  geom_bar() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = "Water Quality Category",
+    y = "Number of observations",
+    title = "Water Quality Distribution in 2024"
+  ) +
+  theme(
+    legend.position = "none",
+    panel.grid.major.x = element_blank()
+  )
+```
+
+Most observations (`r round(sum(combined_data$enterococci_category %in% c("Excellent", "Good")) / nrow(combined_data) * 100, 1)`%) fall into the "Excellent" or "Good" categories, indicating generally good water quality at Sydney beaches in 2024. This shows that throughout the year, beachgoers can safely taking part in activities on or in this body of water.
+
+## Conductivity distribution
+
+```{r conductivity-categories}
+combined_data %>%
+  tabyl(conductivity_category) %>%
+  adorn_totals("row") %>%
+  adorn_pct_formatting() %>%
+  knitr::kable()
+```
+
+```{r conductivity-plot}
+combined_data %>%
+  ggplot(aes(x = conductivity_category, fill = conductivity_category)) +
+  geom_bar() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = "Conductivity Category",
+    y = "Number of observations",
+    title = "Conductivity Distribution in 2024"
+  ) +
+  theme(
+    legend.position = "none",
+    panel.grid.major.x = element_blank()
+  )
+```
+
+## Variable distributions
+
+```{r density}
+library(patchwork)
+
+d1 <- combined_data %>%
+  ggplot(aes(x = avg_temp)) +
+  geom_density(fill = "#69b3a2", color = "#e9ecef") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = "Average Temperature (C)",
+    title = "Temperature Distribution 2024"
+  )
+
+d2 <- combined_data %>%
+  ggplot(aes(x = enterococci_cfu_100ml)) +
+  geom_density(fill = "#69b3a2", color = "#e9ecef") +
+  scale_x_log10() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = "Enterococci (CFU/100mL)",
+    title = "Enterococci Distribution 2024"
+  )
+
+d3 <- combined_data %>%
+  ggplot(aes(x = conductivity_ms_cm)) +
+  geom_density(fill = "#69b3a2", color = "#e9ecef") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = "Conductivity (mS/cm)",
+    title = "Conductivity Distribution 2024"
+  )
+d4 <- combined_data %>%
+  ggplot(aes(x = sqrt(precipitation_mm))) +
+  geom_density(fill = "#4C9F70", color = "#e9ecef") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = expression(sqrt("Precipitation (mm)")),
+    title = "Square Root Transformed Precipitation Distribution 2024"
+  )
+
+
+(d1 + d2) / (d3 + d4)
+```
+
+The density plots illustrate the distributions of the primary continuous variables.
+
+Temperature: The distribution is bimodal, with peaks around 15C and 22C, reflecting the temperature variations between the colder and warmer months of the year.
+
+Enterococci: The distribution is strongly right-skewed, with the vast majority of observations clustered at low concentrations (<100 CFU/100mL) and a long tail representing infrequent high-concentration events.
+
+Conductivity: The distribution is highly concentrated around 50,000-55,000 mS/cm, which is typical for seawater, but with a smaller secondary peak at very low conductivity levels, suggesting some freshwater influence in a subset of samples.
+
+Precipitation: The square root transformed precipitation data also shows a strong right-skew, indicating that most days had little to no rainfall, with fewer instances of heavy precipitation.
+
+# Hypothesis testing
+
+## H1: Temperature and Enterococci relationship
+
+**Hypothesis**: Higher temperatures lead to increased enterococci levels due to enhanced bacterial growth conditions.
+
+```{r h1-analysis}
+# Spearman correlation (non-parametric due to skewed data)
+spear_temp <- cor.test(combined_data$avg_temp, combined_data$enterococci_cfu_100ml,
+  method = "spearman"
+)
+
+# Linear regression with log-transformed enterococci
+lm_temp <- lm(log_enterococci ~ avg_temp, data = combined_data)
+
+# Visualization
+combined_data %>%
+  ggplot(aes(x = avg_temp, y = enterococci_cfu_100ml)) +
+  geom_point(aes(color = season), alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  scale_y_log10() +
+  labs(
+    title = "Temperature vs Enterococci Relationship",
+    x = "Average Temperature (C)",
+    y = "Enterococci CFU/100mL (log scale)",
+    color = "Season"
+  ) +
+  theme_minimal()
+```
+
+The results are highly dependent on the season. Overall we can see a connection between the amount of bacteria in the water the average temperature, as it increases slightly with higher temperature. In Summer the water quality is much worse than in the other seasons, even with the same temperature. This can be explained by the fact that in summer the people visit the beaches more often, which has negative effects on the water. For high temperatures the amount of bacteria in the water increases. Enterococci levels tend to increase slightly as temperature rises from 10°C to approximately 23°C, after which the trend plateaus or slightly declines. However, the high variability in enterococci levels at any given temperature indicates that temperature alone is not a strong predictor of bacterial concentration. This is in conflict with the hypothesis. However we have to consider that there just isn't much data for those temperatures.
+
+```{r data-visualization}
+mean_data <- combined_data %>%
+  group_by(avg_temp) %>%
+  summarise(mean_enterococci = mean(enterococci_cfu_100ml, na.rm = TRUE))
+
+# Plot
+ggplot(mean_data, aes(x = avg_temp, y = mean_enterococci)) +
+  geom_point(color = "blue", size = 3) +
+  geom_line(color = "blue") +
+  labs(
+    title = "Mean Enterococci vs. Average Temperature",
+    x = "Average Temperature",
+    y = "Mean Enterococci (cfu/100ml)"
+  ) +
+  theme_minimal()
+```
+
+```{r h1-test}
+# Correlation test
+cor_test_h1 <- cor.test(combined_data$avg_temp, combined_data$enterococci_cfu_100ml, method = "spearman")
+cat("Spearman's rho:", round(cor_test_h1$estimate, 3))
+cat("\np-value:", format.pval(cor_test_h1$p.value, digits = 3))
+```
+The Spearman's rank correlation test yielded a rho coefficient of 0.196. This value indicates a weak, positive monotonic relationship between average temperature and enterococci concentration. The p-value (< 0.001) is statistically significant, suggesting that the observed association is unlikely to be due to random chance. While significant, the weakness of the correlation reinforces that other factors besides temperature influence enterococci levels.
+
+## H2: Precipitation impact on water quality
+
+**Hypothesis**: Precipitation affects enterococci levels through contaminated runoff (increasing levels) and dilution effects.
+
+```{r h2-boxplot}
+combined_data %>%
+  ggplot(aes(x = precip_category, y = enterococci_cfu_100ml, fill = precip_category)) +
+  geom_boxplot(outlier.colour = "hotpink") +
+  geom_jitter(
+    position = position_jitter(width = 0.1, height = 0),
+    alpha = 0.25
+  ) +
+  scale_y_log10() +
+  labs(
+    x = "Precipitation Category",
+    y = "Enterococci (CFU/100mL)",
+    title = "H2: Precipitation vs Enterococci Levels (2024)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+```
+
+The box plot illustrates the distribution of enterococci levels across four precipitation categories. Median enterococci concentrations appear to increase from "No Rain" to "Light Rain" and "Moderate Rain." The "Heavy Rain" category shows a lower median than "Moderate Rain" but a wide interquartile range. All categories with precipitation exhibit a greater number of high-end outliers compared to the "No Rain" condition, suggesting that rainfall events are associated with an increased likelihood of elevated bacterial counts.
+
+```{r h2-test}
+# Kruskal-Wallis test
+kruskal_h2 <- kruskal.test(enterococci_cfu_100ml ~ precip_category, data = combined_data)
+print(kruskal_h2)
+
+# Summary by precipitation category
+combined_data %>%
+  group_by(precip_category) %>%
+  summarise(
+    n = n(),
+    mean_enterococci = round(mean(enterococci_cfu_100ml), 1),
+    median_enterococci = round(median(enterococci_cfu_100ml), 1),
+    .groups = "drop"
+  ) %>%
+  knitr::kable()
+```
+The test yielded a chi-squared value of 148.68 with 3 degrees of freedom, and a p-value less than 0.001. This result indicates that there is a statistically significant difference in the distribution of enterococci levels across at least one of the precipitation categories.
+
+The Kruskal-Wallis test was employed as a non-parametric alternative to analysis of variance (ANOVA), due to the non-normal distribution of Enterococci data, which violates a core assumption of ANOVA. This test assesses whether statistically significant differences exist in median Enterococci concentrations across various precipitation categories by evaluating ranked data rather than raw values. A significant outcome indicates that at least one category differs in its Enterococci distribution compared to the others.
+
+## H3: Seasonal variation in water quality
+
+**Hypothesis**: Water quality varies significantly across seasons due to combined effects of temperature, rainfall patterns, and other seasonal factors.
+
+```{r h3-boxplot}
+combined_data %>%
+  ggplot(aes(x = season, y = enterococci_cfu_100ml, fill = season)) +
+  geom_boxplot(outlier.colour = "hotpink") +
+  geom_jitter(
+    position = position_jitter(width = 0.1, height = 0),
+    alpha = 0.25
+  ) +
+  scale_y_log10() +
+  labs(
+    x = "Season",
+    y = "Enterococci (CFU/100mL)",
+    title = "H3: Seasonal Variation in Enterococci (2024)"
+  ) +
+  theme(legend.position = "none")
+```
+The box plots comparing enterococci levels by season reveal distinct patterns. Summer exhibits the highest median enterococci concentration and the greatest variability, as shown by the larger interquartile range and the presence of numerous high-value outliers. Autumn shows the second-highest median. In contrast, Winter and Spring have lower median concentrations and less variability, with Winter displaying the most consistently low levels.
+
+
+```{r h3-test}
+# Kruskal-Wallis for seasonal differences
+kruskal_h3 <- kruskal.test(enterococci_cfu_100ml ~ season, data = combined_data)
+print(kruskal_h3)
+combined_data %>%
+  ggplot(aes(x = enterococci_cfu_100ml, group = season, fill = season)) +
+  geom_density(alpha = .4) +
+  scale_x_log10() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    x = "Enterococci (CFU/100mL, log scale)",
+    title = "H3: Seasonal Distribution of Enterococci Levels (2024, log scale)"
+  )
+```
+To test for significant differences in water quality between seasons, a Kruskal-Wallis test was performed. The result was highly significant (chi-squared = 286.27, df = 3, p < 0.001), confirming that the distribution of enterococci concentrations differs significantly across the four seasons.
+
+The Kruskal-Wallis test was applied in place of a one-way analysis of variance (ANOVA) due to the violation of the normality assumption in the Enterococci data. This non-parametric method assesses whether significant differences in median Enterococci concentrations exist across the four seasons. Its use enables the detection of seasonal patterns in water quality while minimizing the influence of data skewness and outliers.
+
+-   **Winter** shows the highest density at very low enterococci levels (under 10 CFU/100mL), suggesting consistently clean water conditions.
+-   **Spring** follows a similar pattern with a high concentration of low enterococci counts.
+-   **Summer** exhibits a broader distribution, with a noticeable right tail, indicating more frequent occurrences of elevated bacterial levels. This may be due to higher temperatures, increased human activity, or stormwater runoff during the warmer months.
+-   **Autumn** also shows a wider distribution than Winter/Spring, but less extreme than Summer.
+
+Overall, the plot supports H3: **seasonal differences are evident**, with Summer and Autumn having higher variability and more elevated enterococci levels than Spring and Winter.
+
+## H4: Conductivity and Enterococci relationship
+
+**Hypothesis**: Conductivity levels are associated with enterococci levels, potentially indicating pollution sources or salinity effects.
+
+```{r h4-scatter}
+combined_data %>%
+  ggplot(aes(x = conductivity_ms_cm, y = enterococci_cfu_100ml)) +
+  geom_point(aes(color = season), alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "red", alpha = 0.3) +
+  scale_y_log10() +
+  labs(
+    x = "Conductivity (mS/cm)",
+    y = "Enterococci (CFU/100mL)",
+    title = "H4: Conductivity vs Enterococci Levels (2024)"
+  )
+```
+The scatter plot reveals a negative relationship between conductivity and enterococci levels. High enterococci concentrations ( > 1,000 CFU/100mL) are almost exclusively observed at low conductivity levels ( < 20,000 mS/cm). As conductivity increases towards typical seawater levels (approx. 50,000 mS/cm), the enterococci concentrations become consistently low. The linear regression trend line confirms this strong negative association.
+
+```{r h4-boxplot}
+combined_data %>%
+  ggplot(aes(x = conductivity_category, y = enterococci_cfu_100ml, fill = conductivity_category)) +
+  geom_boxplot(outlier.colour = "hotpink") +
+  geom_jitter(
+    position = position_jitter(width = 0.1, height = 0),
+    alpha = 0.25
+  ) +
+  scale_y_log10() +
+  labs(
+    x = "Conductivity Category",
+    y = "Enterococci (CFU/100mL)",
+    title = "H4: Conductivity Categories vs Enterococci Levels (2024)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+```
+
+```{r h4-test}
+# Spearman Correlation test
+cor_test_h4 <- cor.test(combined_data$conductivity_ms_cm, combined_data$enterococci_cfu_100ml, method = "spearman")
+print(cor_test_h4)
+
+# Summary by conductivity category
+combined_data %>%
+  group_by(conductivity_category) %>%
+  summarise(
+    n = n(),
+    mean_enterococci = round(mean(enterococci_cfu_100ml), 1),
+    median_enterococci = round(median(enterococci_cfu_100ml), 1),
+    mean_conductivity = round(mean(conductivity_ms_cm), 1),
+    .groups = "drop"
+  ) %>%
+  knitr::kable()
+```
+The relationship was quantified using Spearman's rank correlation. The resulting rho of -0.382 indicates a moderate negative monotonic relationship between conductivity and enterococci levels. The p-value (< 0.001) confirms this association is statistically significant. This suggests that as conductivity decreases, indicating a greater influence of freshwater (potentially from runoff), enterococci levels tend to increase.
+
+Spearman’s rank correlation was employed to examine the association between conductivity and Enterococci concentrations. Consistent with the approach taken for Hypothesis 1 (H1), this non-parametric method was selected due to the skewed distribution of Enterococci data and the potential non-linearity of the relationship. The test evaluates the presence of a monotonic relationship between the two variables, thereby identifying whether variations in conductivity are systematically associated with changes in bacterial levels.
+
+# Combined analysis
+
+## Correlations between variables
+
+```{r correlations}
+library(correlation)
+library(GGally)
+
+combined_data %>%
+  dplyr::select(avg_temp, precipitation_mm, enterococci_cfu_100ml, water_temperature_c, conductivity_ms_cm) %>%
+  correlation() %>%
+  knitr::kable()
+
+combined_data %>%
+  dplyr::select(avg_temp, precipitation_mm, enterococci_cfu_100ml, water_temperature_c, conductivity_ms_cm) %>%
+  ggcorr(label = TRUE, label_round = 2) +
+  labs(title = "Correlation Matrix (2024)")
+```
+The Pearson correlation matrix highlights several significant relationships between the variables. A strong positive correlation (r = 0.76) exists between average air temperature and water temperature, as expected. Weaker, yet statistically significant, positive correlations are observed between enterococci and average temperature (r = 0.07), water temperature (r = 0.09), and precipitation (r = 0.07). A notable negative correlation exists between enterococci and conductivity (r = -0.22), which is the strongest predictor of enterococci among the environmental variables shown.
+
+It can be seen that there's a strong correlation between the average temperature and the water temperature. This connection it explained obviously by the fact that the outside temperature affects the temperature of the water. There also seems to be a correlation between the water temperature and the amount of bacteria, which have better conditions in warm water. Also the precipitation contributes to the bacteria in the water, since the rain contaminates the water.
+
+## Multiple regression model
+
+We combine our key predictors in a multiple regression model:
+
+```{r regression}
+log_enterococci <- log(combined_data$enterococci_cfu_100ml + 1)
+log_avg_temp <- log(combined_data$avg_temp + 1)
+log_precipitation_mm <- log(combined_data$precipitation_mm + 1)
+log_conductivity_ms_cm <- log(combined_data$conductivity_ms_cm + 1)
+
+model <- lm(log_enterococci ~ log_avg_temp + log_precipitation_mm + log_conductivity_ms_cm + season, data = combined_data)
+
+tidy_model <- model %>%
+  tidy()
+
+tidy_model %>%
+  knitr::kable()
+
+model_stats <- glance(model)
+summary(model)
+```
+The multiple linear regression model was constructed to predict log-transformed enterococci concentrations using log-transformed average temperature, precipitation, conductivity, and season as predictors. The model is statistically significant (F(6, 3640) = 147.9, p < 0.001) and explains 19.6% of the variance in log-enterococci levels (Adjusted R² = 0.195).
+
+Analysis of the coefficients indicates that log-precipitation (b = 0.42, p < 0.001) is a significant positive predictor, meaning higher precipitation is associated with higher enterococci counts. Log-conductivity (b = -0.45, p < 0.001) is a significant negative predictor. Compared to the baseline season (Spring), Summer (b = 1.04, p < 0.001) and Autumn (b = 0.65, p < 0.001) are associated with significantly higher enterococci levels, while Winter (b = -0.21, p = 0.029) is associated with significantly lower levels. Log-average temperature was not a statistically significant predictor (p = 0.164) in this model, suggesting its effect is captured by the seasonal variables.
+
+**Model Summary**: The model explains `r round(model_stats$r.squared * 100, 1)`% of the variance in enterococci levels (R² = `r round(model_stats$r.squared, 3)`, p = `r format.pval(model_stats$p.value, digits = 3)`).
+
+**Key Findings**: - Temperature coefficient: *b* = `r round(tidy_model$estimate[2], 2)` (`r scales::pvalue(tidy_model$p.value[2], accuracy = 0.001, add_p = TRUE)`) - Precipitation coefficient: *b* = `r round(tidy_model$estimate[3], 2)` (`r scales::pvalue(tidy_model$p.value[3], accuracy = 0.001, add_p = TRUE)`) - Conductivity coefficient: *b* = `r round(tidy_model$estimate[4], 2)` (`r scales::pvalue(tidy_model$p.value[4], accuracy = 0.001, add_p = TRUE)`)
+
+# Data validation
+
+```{r data-validation}
+# Check the filtered dataset
+cat("Dataset Overview (2024 only):\n")
+cat("Date range:", as.character(min(combined_data$date)), "to", as.character(max(combined_data$date)), "\n")
+cat("Total observations:", nrow(combined_data), "\n")
+cat("Unique dates:", length(unique(combined_data$date)), "\n")
+
+# Monthly distribution
+combined_data %>%
+  mutate(month_name = month(date, label = TRUE)) %>%
+  count(month_name) %>%
+  knitr::kable()
+```
+This shows that the dataset is composed of normally distributed samples all-year-round. No observation discrimination were found in between 12 months of the year.
+
+# Conclusions
+
+H1 - Temperature Effect: A non-significant correlation was found between temperature and enterococci levels in 2024.
+
+H2 - Precipitation Impact: The Kruskal-Wallis test showed significant differences in enterococci levels across precipitation categories in 2024, with an exception in Heavy Rain, which could be explained through a reduced beach visitor number during bad weather.
+
+H3 - Seasonal Variation: The Kruskal-Wallis test showed significant seasonal differences in water quality in 2024.
+
+H4 - Conductivity Relationship: A significant negative monotonic correlation was found between conductivity and enterococci levels in 2024
+
+### Model Limitations:
+
+The presented model demonstrates several limitations due to the exclusion of key variables that significantly influence Enterococci concentrations in coastal waters. Factors such as local visitor traffic, fish population dynamics, and sewage discharge volumes were not included in the dataset. Consequently, the model primarily captures the effects of seasonal and meteorological conditions—such as air temperature, precipitation, and water conductivity—on seawater quality.
+
+This constrained variable scope may reduce explanatory power, particularly when variability in non-weather-related influences, including anthropogenic activity and ecological changes, affects bacterial concentrations. As a result, the model's ability to generalize or adapt to evolving environmental conditions may be limited.
+
+Furthermore, its predictive reliability may decline under shifts in human behavior, industrial output, or wildlife movements. Significant deviations—such as alterations in tourism patterns, changes in industrial discharge practices, or ecological disruptions—could introduce confounding factors not accounted for in the current framework. Broader environmental transitions, including those driven by climate change (e.g., sea surface temperature increases, ocean acidification, and extreme weather events), may also impact Enterococci growth in ways that this model is not designed to accurately forecast.
+
+Global disruptions, such as the COVID-19 pandemic, have underscored the influence of unpredictable socio-environmental events on coastal water quality. Such phenomena further highlight the need for models capable of integrating sudden changes in human activity and environmental dynamics.
+
+Furthermore, the predictive capability of similar datasets is likely to diminish if patterns of year-round human, industrial, or animal activities undergo significant changes. For instance, shifts in tourism patterns, industrial discharge rates, or wildlife behavior could introduce confounding effects that the current model cannot address. Given the accelerating pace of climate change, driven by environmentally damaging activities such as deforestation, industrial emissions, and urbanization, the model's relevance may decline in the future.
+
+### Recommendations for Model Enhancement
+
+While the current version offers a reliable baseline for monitoring seasonal variations in seawater quality, its predictive performance can be significantly improved by:
+
+-   **Variable Expansion**: Incorporating data on sewage output volumes, marine fauna migration, and recreational water use to account for direct and indirect influences on bacterial proliferation.
+
+-   **Tourism Metrics**: Including real-time observations of visitor counts, and recreational intensity to support better forecasting.
+
+## Practical Applications
+
+Environmental and public health authorities can apply this model to guide seasonal water testing strategies, identify potential pollution events, and inform regulation timelines. Specific applications include:
+
+-   Early identification of anomalous spikes in bacterial concentrations, such as those resulting from unregulated discharge or algal blooms.
+
+-   Supporting the implementation of evidence-based water testing regimes during periods of heightened recreational activity.
+
+These findings provide insights into the environmental factors affecting beach water quality during 2024 and can inform public health monitoring strategies for Sydney's recreational waters.
