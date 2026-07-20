@@ -1,0 +1,622 @@
+---
+title: "The Space Race and Beyond: A Statistical History of Global Space Launches"
+subtitle: "From Cold War Competition to the Era of Reusable Rockets"
+author: "Maxim Savciuc"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    fig_caption: true
+    df_print: kable
+    css: styles.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width  = 10,
+  fig.height = 5.5,
+  dpi     = 150,
+  out.width = "100%"
+)
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(RColorBrewer)
+library(ggrepel)
+library(patchwork)
+library(knitr)
+
+# ── Colour palette ──────────────────────────────────────────────────────────
+COLD_WAR_BLUE  <- "#1a3a5c"
+SOVIET_RED     <- "#c0392b"
+NASA_BLUE      <- "#0b3d91"
+MODERN_ORANGE  <- "#e67e22"
+PRIVATE_GREEN  <- "#27ae60"
+NEUTRAL_GREY   <- "#7f8c8d"
+CHINA_YELLOW   <- "#f1c40f"
+ERA_COLS       <- c("#c0392b","#1a3a5c","#2980b9","#27ae60","#e67e22")
+
+# ── Load data (Der Pfad muss manuell geändert werden, hatte probleme mit relativem Pfad und direkten Zugriff auf GitHub) ────────────────────────────────────────────────────────────────
+launches <- read.csv("/home/University/R_Proj_Weltraumstart/launches.csv",
+                     stringsAsFactors = FALSE)
+agencies <- read.csv("/home/University/R_Proj_Weltraumstart/agencies.csv",
+                     stringsAsFactors = FALSE)
+
+# ── Common theme ─────────────────────────────────────────────────────────────
+theme_space <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) %+replace%
+    theme(
+      plot.background   = element_rect(fill = "#f8f9fa", colour = NA),
+      panel.background  = element_rect(fill = "#ffffff", colour = NA),
+      panel.grid.major  = element_line(colour = "#e9ecef", size = 0.4),
+      panel.grid.minor  = element_blank(),
+      plot.title        = element_text(face = "bold", size = base_size + 3,
+                                       colour = "#2c3e50", margin = margin(b = 6)),
+      plot.subtitle     = element_text(colour = "#5d6d7e", size = base_size - 0.5,
+                                       margin = margin(b = 10)),
+      plot.caption      = element_text(colour = "#95a5a6", size = base_size - 2,
+                                       hjust = 0, margin = margin(t = 8)),
+      axis.title        = element_text(colour = "#5d6d7e", size = base_size - 1),
+      axis.text         = element_text(colour = "#5d6d7e"),
+      legend.background = element_rect(fill = "#f8f9fa", colour = NA),
+      legend.key        = element_rect(fill = NA, colour = NA),
+      strip.text        = element_text(face = "bold", colour = "#2c3e50"),
+      plot.margin       = margin(12, 16, 10, 12)
+    )
+}
+
+# ── Derived data ──────────────────────────────────────────────────────────────
+country_labels <- c(
+  SU = "Soviet Union", US = "United States", RU = "Russia",
+  CN = "China", F  = "France / ESA", J  = "Japan", IN = "India"
+)
+
+launches <- launches %>%
+  mutate(
+    success   = ifelse(category == "O", 1L, 0L),
+    decade    = (launch_year %/% 10) * 10,
+    era       = case_when(
+      launch_year <= 1969 ~ "Space Race\n(1957–1969)",
+      launch_year <= 1991 ~ "Cold War\n(1970–1991)",
+      launch_year <= 2000 ~ "Post-Soviet\n(1992–2000)",
+      launch_year <= 2010 ~ "2000s\n(2001–2010)",
+      TRUE                ~ "New Space\n(2011–2018)"
+    ),
+    era = factor(era, levels = c(
+      "Space Race\n(1957–1969)", "Cold War\n(1970–1991)",
+      "Post-Soviet\n(1992–2000)", "2000s\n(2001–2010)", "New Space\n(2011–2018)"
+    )),
+    country_label = recode(state_code, !!!country_labels, .default = "Other")
+  )
+
+top6_states <- c("SU","US","RU","CN","F","J")
+```
+
+---
+
+# Introduction
+
+Space exploration is a major scientific and engineering activity that has evolved from early government-led programs into a broader international and commercial launch industry. The dataset analysed here covers **`r nrow(launches)` orbital launch attempts** spanning `r min(launches$launch_year)` to `r max(launches$launch_year)`, using launch records compiled from Jonathan McDowell's *JSR Launch Vehicle Database* and supplementary public reporting. The data has been taken from the tidytuesday GitHub repository.
+
+This report focuses on three broad phases of launch development:
+
+1. **The early spaceflight period (1957–1969)** — rapid growth in launch activity following the first orbital missions.  
+2. **The expansion of launch infrastructure (1970–1991)** — increasing launch capacity and a growing range of satellite missions.  
+3. **The commercial and reusable launch era (1992–2018)** — rising private-sector participation and renewed interest in lowering launch costs.
+
+Although the dataset ends in 2018, later developments are discussed separately to provide context for the growing role of reusable rockets and commercial launch providers in the 2020s.
+
+---
+
+# The Big Picture: Launches Over Time
+
+## Annual Launch Counts, 1957–2018
+
+```{r fig_annual_total, fig.cap="Annual global launch attempts. Grey bands mark the Cold War (1947–1991) and the early New Space era (2011–2018). Dotted line: 1991 Soviet collapse.", fig.height=5}
+
+total_annual <- launches %>%
+  group_by(launch_year) %>%
+  summarise(n = n(), .groups = "drop")
+
+ggplot(total_annual, aes(launch_year, n)) +
+  # era shading
+  annotate("rect", xmin = 1957, xmax = 1969,
+           ymin = 0, ymax = Inf, alpha = 0.07, fill = SOVIET_RED) +
+  annotate("rect", xmin = 1969, xmax = 1991,
+           ymin = 0, ymax = Inf, alpha = 0.05, fill = COLD_WAR_BLUE) +
+  annotate("rect", xmin = 2011, xmax = 2018,
+           ymin = 0, ymax = Inf, alpha = 0.06, fill = PRIVATE_GREEN) +
+  # 1991 collapse line
+  geom_vline(xintercept = 1991, linetype = "dotted",
+             colour = SOVIET_RED, size = 0.7) +
+  geom_area(fill = COLD_WAR_BLUE, alpha = 0.15) +
+  geom_line(colour = COLD_WAR_BLUE, size = 1.1) +
+  geom_point(data = total_annual %>% filter(n == max(n)),
+             aes(launch_year, n), colour = SOVIET_RED, size = 3.5) +
+  geom_label(data = total_annual %>% filter(n == max(n)),
+             aes(label = paste0("Peak: ", n, " (", launch_year, ")")),
+             nudge_y = 6, nudge_x = 3, size = 3.2,
+             colour = SOVIET_RED, fill = "white", label.size = 0.3) +
+  annotate("text", x = 1962, y = 10, label = "Space Race", size = 3,
+           colour = SOVIET_RED, fontface = "italic") +
+  annotate("text", x = 1980, y = 10, label = "Cold War peak", size = 3,
+           colour = COLD_WAR_BLUE, fontface = "italic") +
+  annotate("text", x = 2014, y = 10, label = "New Space", size = 3,
+           colour = PRIVATE_GREEN, fontface = "italic") +
+  scale_x_continuous(breaks = seq(1960, 2018, by = 5)) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, .08))) +
+  labs(
+    title    = "Global Space Launch Attempts, 1957–2018",
+    subtitle = "Total orbital launch attempts per year across all nations and agencies",
+    x = "Year", y = "Number of launches",
+    caption  = "Source: McDowell JSR Launch Vehicle Database / The Economist"
+  ) +
+  theme_space()
+```
+
+The chart reveals three phases. Launch activity exploded during the early Space Race, peaking at **`r total_annual$n[which.max(total_annual$n)]` launches in `r total_annual$launch_year[which.max(total_annual$n)]`** as both superpowers the USA and the USSR raced to demonstrate technological and military supremacy. After a plateau through the 1970s–80s, the Soviet collapse caused a dramatic drop of the launches in the early 1990s. Activity then stabilized at roughly 60–90 launches per year — a new baseline maintained largely by commercial operators like SpaceX and a rising Chinese space program.
+
+## US vs. Soviet Union (afterwards Russia)
+
+```{r fig_us_su_race, fig.cap="Annual launches by the United States vs. the Soviet Union (merged with Russia after 1991). The shaded region highlights the period of direct superpower competition.", fig.height=5}
+
+us_su <- launches %>%
+  filter(state_code %in% c("SU", "US", "RU")) %>%
+  mutate(bloc = ifelse(state_code == "US", "United States",
+                       "USSR / Russia")) %>%
+  group_by(launch_year, bloc) %>%
+  summarise(n = n(), .groups = "drop")
+
+ggplot(us_su, aes(launch_year, n, colour = bloc, fill = bloc)) +
+  annotate("rect", xmin = 1957, xmax = 1991,
+           ymin = 0, ymax = Inf, alpha = 0.04, fill = "#8e44ad") +
+  geom_area(alpha = 0.12, position = "identity") +
+  geom_line(size = 1.1) +
+  geom_vline(xintercept = 1969, linetype = "dashed",
+             colour = NEUTRAL_GREY, size = 0.6) +
+  geom_vline(xintercept = 1991, linetype = "dotted",
+             colour = SOVIET_RED, size = 0.7) +
+  annotate("text", x = 1969.5, y = 115,
+           label = "Moon landing\n(Jul 1969)", size = 2.8,
+           hjust = 0, colour = NEUTRAL_GREY) +
+  annotate("text", x = 1991.5, y = 115,
+           label = "USSR\ncollapses", size = 2.8,
+           hjust = 0, colour = SOVIET_RED) +
+  scale_colour_manual(values = c("United States" = NASA_BLUE,
+                                  "USSR / Russia"  = SOVIET_RED)) +
+  scale_fill_manual(values = c("United States" = NASA_BLUE,
+                                "USSR / Russia"  = SOVIET_RED)) +
+  scale_x_continuous(breaks = seq(1960, 2018, by = 5)) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, .08))) +
+  labs(
+    title    = "Space Race: United States vs. USSR / Russia",
+    subtitle = "Annual launch counts by superpower, 1957–2018",
+    x = "Year", y = "Launches",
+    colour = NULL, fill = NULL,
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(legend.position = "top")
+```
+
+The graph represents the total number of space launches of the USA and the USSR from 1957 up to 2018. It is to see that from 1957 up to 1966 the United Stated led the by the number of space launches, which included satellites, rockets and ballistic missile tests. Afterwards the USSR outnumbered the US launches by producing cheaper and less reliable satellites and rockets, whereas the launches from the US remained nearly constant. From 1991 a huge drop of space launches by USSR is seen, due to its fall and budget cuts, since a lot of countries were separated. The US program became also more expensive and this led to a total decline of the overall number of space launches.
+
+---
+
+# The Cold War Space Race in Detail
+
+## Who Was Launching — and How Many?
+
+```{r fig_stacked_country, fig.cap="Stacked area chart of annual launches by the six most active spacefaring nations. Here USSR and Russia depicted as different states.", fig.height=5.5}
+
+by_country <- launches %>%
+  mutate(state_grp = ifelse(state_code %in% top6_states, state_code, "Other")) %>%
+  group_by(launch_year, state_grp) %>%
+  summarise(n = n(), .groups = "drop")
+
+state_order <- c("SU","US","RU","CN","F","J","Other")
+state_cols  <- c(
+  SU    = SOVIET_RED,   US    = NASA_BLUE,
+  RU    = "#e74c3c",    CN    = CHINA_YELLOW,
+  F     = "#9b59b6",    J     = "#16a085",
+  Other = NEUTRAL_GREY
+)
+state_names <- c(
+  SU = "Soviet Union", US = "United States", RU = "Russia",
+  CN = "China", F = "France/ESA", J = "Japan", Other = "Other"
+)
+
+by_country$state_grp <- factor(by_country$state_grp, levels = rev(state_order))
+
+ggplot(by_country, aes(launch_year, n, fill = state_grp)) +
+  geom_area(alpha = 0.9, colour = "white", size = 0.2) +
+  scale_fill_manual(values = state_cols, labels = state_names,
+                    breaks = state_order) +
+  scale_x_continuous(breaks = seq(1960, 2018, by = 5)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .05))) +
+  labs(
+    title    = "Annual Launches by Nation, 1957–2018",
+    subtitle = "The Cold War is dominated by two colours; China's rise is visible post-2000",
+    x = "Year", y = "Launches", fill = NULL,
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(legend.position = "right")
+```
+
+## Total Launches by Nation — All-Time
+
+```{r fig_bar_country, fig.cap="Total launches by nation across the full 1957–2018 period.", fig.height=4.5}
+
+totals_country <- launches %>%
+  mutate(state_grp = ifelse(state_code %in% top6_states,
+                             state_code, "Other")) %>%
+  group_by(state_grp) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(
+    label = recode(state_grp, !!!country_labels, Other = "Other"),
+    label = factor(label, levels = label[order(n)])
+  )
+
+ggplot(totals_country, aes(n, label,
+       fill = recode(state_grp, !!!setNames(names(state_cols), names(state_cols))))) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  geom_text(aes(label = comma(n)), hjust = -0.15, size = 3.3,
+            colour = "#2c3e50") +
+  scale_fill_manual(values = state_cols) +
+  scale_x_continuous(expand = expansion(mult = c(0, .12)),
+                     labels = comma) +
+  labs(
+    title    = "Total Orbital Launch Attempts by Nation, 1957–2018",
+    subtitle = "Bar chart",
+    x = "Total launches", y = NULL,
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(panel.grid.major.y = element_blank())
+```
+
+The Soviet Union's `r launches %>% filter(state_code == "SU") %>% nrow() %>% comma()` launches account for **`r round(launches %>% filter(state_code == "SU") %>% nrow() / nrow(launches) * 100, 1)`%** of all attempts in the dataset. The United States follows with `r launches %>% filter(state_code == "US") %>% nrow() %>% comma()` launches which corresponds to **`r round(launches %>% filter(state_code == "US") %>% nrow() / nrow(launches) * 100, 1)`%** out of total 5726 launches. Together, the two Cold War rivals are responsible for `r round((launches %>% filter(state_code %in% c("SU","US")) %>% nrow()) / nrow(launches) * 100, 1)`% of humanity's orbital launch history.
+
+---
+
+# Reliability: The Quest for Success
+
+## Failure Rates by Decade
+
+```{r fig_failure_decade, fig.cap="Launch failure rate (%) by decade. The early years of rocketry were extraordinarily hazardous; modern reliability exceeds 96%.", fig.height=4}
+
+fail_decade <- launches %>%
+  group_by(decade) %>%
+  summarise(
+    total   = n(),
+    failures = sum(category == "F"),
+    fail_pct = failures / total * 100,
+    .groups  = "drop"
+  ) %>%
+  filter(decade >= 1950)
+
+ggplot(fail_decade, aes(factor(decade), fail_pct)) +
+  geom_col(fill = SOVIET_RED, alpha = 0.8, width = 0.55) +
+  geom_text(aes(label = paste0(round(fail_pct, 1), "%")),
+            vjust = -0.4, size = 3.4, colour = SOVIET_RED, fontface = "bold") +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),
+                     limits = c(0, 62),
+                     expand = expansion(mult = c(0, 0.05))) +
+  scale_x_discrete(labels = c("1950s","1960s","1970s","1980s",
+                               "1990s","2000s","2010s")) +
+  labs(
+    title    = "Launch Failure Rate by Decade, 1957–2018",
+    subtitle = "Engineering progress has reduced failure rates from >50% to under 4%",
+    x = "Decade", y = "Failure rate (%)",
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space()
+```
+
+The improvement in reliability is one of the great engineering success stories of the 20th century. In the **1950s**, over half of all launches failed — rockets were experimental machines pushed far beyond tested limits and were deployed without too much testing. The feeling for competition was stronger than willingness to make reliable machines. By the **1980s**, failure rates had fallen below 3%, and the 2000s achieved roughly one failure in 30 attempts. 
+
+## Annual Success Rate Trend
+
+```{r fig_success_trend, fig.cap="Rolling 5-year average launch success rate, 1960–2018. Individual years shown as points; the smoothed line shows the underlying trend. The rise is seen from 1957 up to 1980. Later on the total rate remained nearly constant.", fig.height=4.5}
+
+yearly_sr <- launches %>%
+  group_by(launch_year) %>%
+  summarise(
+    total    = n(),
+    success_rate = mean(success) * 100,
+    .groups  = "drop"
+  ) %>%
+  filter(launch_year >= 1960)
+
+ggplot(yearly_sr, aes(launch_year, success_rate)) +
+  geom_point(aes(size = total), colour = COLD_WAR_BLUE, alpha = 0.5) +
+  geom_smooth(colour = PRIVATE_GREEN, fill = PRIVATE_GREEN,
+              alpha = 0.15, se = TRUE, method = "loess", span = 0.25) +
+  scale_size_continuous(range = c(1, 5), name = "# launches",
+                        breaks = c(50, 100, 130)) +
+  scale_x_continuous(breaks = seq(1960, 2018, by = 5)) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),
+                     limits = c(70, 102)) +
+  labs(
+    title    = "Annual Launch Success Rate, 1960–2018",
+    subtitle = "Green band = LOESS smoothed trend ± 95% CI; point size = total launches that year",
+    x = "Year", y = "Success rate (%)",
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space()
+```
+
+---
+
+# The Rise of Private Space
+
+## State vs. Commercial vs. Startup Launches
+
+```{r fig_agency_type_area, fig.cap="Annual launches split by agency type. State agencies dominate until the 1990s; private operators and startups grow steadily thereafter.", fig.height=5}
+
+by_type <- launches %>%
+  group_by(launch_year, agency_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(agency_type = factor(agency_type,
+         levels = c("state","private","startup")))
+
+type_cols <- c(state   = COLD_WAR_BLUE,
+               private = PRIVATE_GREEN,
+               startup = MODERN_ORANGE)
+type_labs <- c(state   = "State agency",
+               private = "Private operator",
+               startup = "Startup")
+
+ggplot(by_type, aes(launch_year, n, fill = agency_type)) +
+  geom_area(alpha = 0.85, colour = "white", size = 0.2) +
+  geom_vline(xintercept = 1991, linetype = "dotted",
+             colour = NEUTRAL_GREY, size = 0.7) +
+  annotate("text", x = 1991.5, y = 125,
+           label = "USSR collapse\n→ commercial gap", size = 2.8,
+           hjust = 0, colour = NEUTRAL_GREY) +
+  scale_fill_manual(values = type_cols, labels = type_labs) +
+  scale_x_continuous(breaks = seq(1960, 2018, by = 5)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .05))) +
+  labs(
+    title    = "Launches by Agency Type, 1957–2018",
+    subtitle = "Commercial and startup launches fill the vacuum left by the Soviet collapse",
+    x = "Year", y = "Launches", fill = NULL,
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(legend.position = "top")
+```
+
+This graph covers total number of launches divided by different categories of the launches. There are state agencies which are mostly the departments of defense and other governmental scientific institutions. The second category are the private companies and the start-ups, the newest companies. The last two have an increasing tendency and are suposely taking over other agencies.
+
+## Era-Level Breakdown
+
+```{r fig_era_pie, fig.cap="Share of launches by agency type within each historical era.", fig.height=5.5}
+
+era_type <- launches %>%
+  group_by(era, agency_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(era) %>%
+  mutate(pct = n / sum(n) * 100,
+         agency_type = factor(agency_type,
+                              levels = c("state","private","startup")))
+
+ggplot(era_type, aes(x = 2, y = pct, fill = agency_type)) +
+  geom_col(width = 1, colour = "white", size = 0.4) +
+  coord_polar(theta = "y") +
+  xlim(0.5, 2.5) +
+  facet_wrap(~era, nrow = 1) +
+  scale_fill_manual(values = type_cols, labels = type_labs) +
+  geom_text(aes(label = ifelse(pct > 5, paste0(round(pct), "%"), "")),
+            position = position_stack(vjust = 0.5),
+            size = 2.8, colour = "white", fontface = "bold") +
+  labs(
+    title    = "Agency Type Share by Historical Era",
+    subtitle = "The shift from state monopoly to private sector is visible across eras",
+    fill = NULL,
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(
+    axis.text  = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+## Top 15 Launch Agencies of All Time
+
+```{r fig_top_agencies, fig.cap="Top 15 agencies by total launches, coloured by agency type.", fig.height=5}
+
+agency_totals <- launches %>%
+  filter(!is.na(agency) & agency != "") %>%
+  group_by(agency, agency_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  arrange(desc(n)) %>%
+  slice_head(n = 15) %>%
+  mutate(agency = factor(agency, levels = rev(agency)))
+
+ggplot(agency_totals, aes(n, agency, fill = agency_type)) +
+  geom_col(width = 0.65) +
+  geom_text(aes(label = comma(n)), hjust = -0.12,
+            size = 3.2, colour = "#2c3e50") +
+  scale_fill_manual(values = type_cols, labels = type_labs) +
+  scale_x_continuous(expand = expansion(mult = c(0, .15)),
+                     labels = comma) +
+  labs(
+    title    = "Top 15 Launch Agencies by Total Launches, 1957–2018",
+    subtitle = "State agencies still dominate historically; SpaceX (SPX) already ranks top-10 as a private newcomer",
+    x = "Total launches", y = NULL, fill = "Agency type",
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(panel.grid.major.y = element_blank(),
+        legend.position = "top")
+```
+
+Even within the top-15 list, the US agency — which captures a large portion of historical NASA/DoD activity — sits at the summit with over 1,200 launches. But the appearance of **SPX (SpaceX)** — a company that did not launch its first rocket until 2006 — among the all-time leaders signals just how quickly private operators have developed their business. By 2018 SpaceX had logged `r launches %>% filter(agency == "SPX") %>% nrow()` flights, making it more prolific than Japan's entire space program.
+
+## China's Ascent
+
+```{r fig_china, fig.cap="Chinese annual launches compared to United States launches, 2000–2018.", fig.height=4.5}
+
+cn_us <- launches %>%
+  filter(state_code %in% c("CN","US"),
+         launch_year >= 2000) %>%
+  mutate(label = ifelse(state_code == "CN", "China", "United States")) %>%
+  group_by(launch_year, label) %>%
+  summarise(n = n(), .groups = "drop")
+
+ggplot(cn_us, aes(launch_year, n, colour = label, group = label)) +
+  geom_line(size = 1.3) +
+  geom_point(size = 2.5) +
+  scale_colour_manual(values = c(China = CHINA_YELLOW, `United States` = NASA_BLUE)) +
+  scale_x_continuous(breaks = 2000:2018) +
+  labs(
+    title    = "China vs. United States: Launch Counts, 2000–2018",
+    subtitle = "China's launch cadence has grown steadily, approaching US levels by the mid-2010s",
+    x = "Year", y = "Launches", colour = NULL,
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space() +
+  theme(legend.position = "top",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+---
+
+# The Revolution in Reusable Rocketry (2015–2025)
+
+The dataset ends in 2018, but it captures the very beginning of the reusable-rocket era — specifically SpaceX's Falcon 9, which logged `r launches %>% filter(type == "Falcon 9") %>% nrow()` flights in this period.
+
+## Falcon 9's Trajectory in the Dataset
+
+```{r fig_falcon9, fig.cap="Annual SpaceX Falcon 9 launches within the dataset, 2010–2018.", fig.height=4}
+
+f9 <- launches %>%
+  filter(type == "Falcon 9") %>%
+  group_by(launch_year) %>%
+  summarise(n = n(), .groups = "drop")
+
+ggplot(f9, aes(launch_year, n)) +
+  geom_col(fill = MODERN_ORANGE, width = 0.6, alpha = 0.9) +
+  geom_text(aes(label = n), vjust = -0.4, size = 3.5,
+            colour = MODERN_ORANGE, fontface = "bold") +
+  scale_x_continuous(breaks = 2010:2018) +
+  scale_y_continuous(limits = c(0, 22),
+                     expand = expansion(mult = c(0, .05))) +
+  labs(
+    title    = "SpaceX Falcon 9 Annual Launches, 2010–2018",
+    subtitle = "The dataset captures the early ramp-up of what would become the world's most-flown rocket",
+    x = "Year", y = "Launches",
+    caption = "Source: McDowell JSR / The Economist"
+  ) +
+  theme_space()
+```
+
+## What Happened After 2018: The Reusability Revolution
+
+The data window closes just as the most consequential shift in spaceflight economics was gathering momentum. The key developments from 2019 to 2025 that transformed the industry:
+
+```{r milestones_table}
+milestones <- data.frame(
+  Year  = c(2015, 2017, 2019, 2021, 2022, 2023, 2024, 2025),
+  Event = c(
+    "Falcon 9 first booster landing (VTVL)",
+    "First re-flown Falcon 9 booster; cost-per-kg drops sharply",
+    "Falcon Heavy recovers all three cores; Starlink mega-constellation begins",
+    "SpaceX exceeds 30 launches in a single year — a US record",
+    "SpaceX surpasses 60 annual launches; Falcon 9 fleet leader at 15+ flights per booster",
+    "SpaceX's Starship reaches orbit for the first time; RocketLab's Neutron in development",
+    "SpaceX delivers > 130 launches; global annual total surpasses 250",
+    "First operational Starship flights; reusable boosters land routinely; launch costs at ~\\$1,000/kg to LEO"
+  )
+)
+kable(milestones,
+      col.names = c("Year", "Milestone"),
+      caption   = "Key milestones in the reusable-rocket era, 2015–2025 (post-dataset supplementary context)")
+```
+
+It is also important to mention that in the year 2025 there were the most number of space launches in our history. This is the direct consequence of the usage of reusable rockets.
+
+### The Cost Curve
+
+Perhaps the most consequential effect of reusability is economic. Before SpaceX, the marginal cost of a Falcon 9-class launch exceeded **\$60 million**. By 2025, with boosters flying their 15th or 20th mission, SpaceX's stated marginal cost for a refurbishment-and-refly cycle is below **\$10 million** for the core stage, bringing the all-in price per kilogram to low Earth orbit down by a factor of roughly 15× compared to the Space Shuttle era.
+
+This cost compression is structurally disrupting the incumbents (United Launch Alliance, Arianespace, Roscosmos) and enabling entirely new categories of missions — from commercial space stations to low-latency broadband constellations to (eventually) large-scale human Mars exploration.
+
+---
+
+# Summary Findings
+
+```{r summary_stats}
+summary_df <- data.frame(
+  Metric  = c(
+    "Total orbital launch attempts",
+    "Years covered",
+    "Overall success rate",
+    "Most active nation",
+    "Peak launch year",
+    "Failure rate, 1950s",
+    "Failure rate, 2010s",
+    "State-agency share of launches (1957–1991)",
+    "Private-sector share of launches (2011–2018)",
+    "SpaceX flights in dataset"
+  ),
+  Value   = c(
+    comma(nrow(launches)),
+    paste(min(launches$launch_year), "–", max(launches$launch_year)),
+    paste0(round(mean(launches$success) * 100, 1), "%"),
+    paste0("USSR (", comma(launches %>% filter(state_code %in% c("SU","RU")) %>% nrow()), " launches)"),
+    paste0(total_annual$launch_year[which.max(total_annual$n)], " (", total_annual$n[which.max(total_annual$n)], " launches)"),
+    paste0(round(launches %>% filter(decade == 1950) %>% summarise(f = mean(category == "F") * 100) %>% pull(f), 1), "%"),
+    paste0(round(launches %>% filter(decade == 2010) %>% summarise(f = mean(category == "F") * 100) %>% pull(f), 1), "%"),
+    paste0(round(launches %>% filter(launch_year <= 1991) %>% summarise(s = mean(agency_type == "state") * 100) %>% pull(s), 1), "%"),
+    paste0(round(launches %>% filter(launch_year >= 2011) %>% summarise(p = mean(agency_type %in% c("private","startup")) * 100) %>% pull(p), 1), "%"),
+    as.character(launches %>% filter(agency == "SPX") %>% nrow())
+  )
+)
+
+kable(summary_df,
+      col.names = c("Metric", "Value"),
+      caption   = "Key statistics from the 1957–2018 launch dataset")
+```
+
+## Takeaways
+
+1. **Launch activity grew rapidly during the second half of the 20th century.** The highest annual launch volumes in the dataset occur during the decades when orbital launch capabilities were expanding most quickly.
+
+2. **Reliability improved substantially over time.** Launch failure rates declined from high levels in the 1950s to much lower levels by the 2010s, reflecting advances in vehicle design, testing, and operational experience.
+
+3. **Commercial participation became increasingly important.** Private-sector launches were rare before the 1980s, but their share of annual activity increased significantly by the 2010s.
+
+4. **The global launch landscape became more diverse.** Additional launch providers and national programmes contributed to a broader distribution of launch activity over time.
+
+5. **Reusable rocket technology has become a major industry trend.** Developments by companies such as SpaceX, RocketLab, Blue Origin, and other launch providers have contributed to discussions about reducing launch costs and increasing launch cadence.
+
+---
+
+## Conclusion
+
+This small paper was created to look at the development of the space flights from the first launch up to the commercial flights and how it changed with time and usage of reusable rockets. The data was provided only until the year 2018, so the further analysis was made using only these data and analysis from today.
+
+---
+
+## Sources
+
+*Primary data source: Jonathan McDowell, JSR Launch Vehicle Database. Additional contextual information was drawn from publicly available reporting by organisations such as NASA, ESA, the U.S. Federal Aviation Administration (FAA), and other established space-industry sources. Dataset is used from the tidytuesday GitHub repository.*
+
+---
