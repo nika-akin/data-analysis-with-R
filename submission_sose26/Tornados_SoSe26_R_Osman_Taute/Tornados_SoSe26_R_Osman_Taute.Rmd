@@ -1,0 +1,496 @@
+---
+title: "Tornados"
+author: "Amar omer Ahmed Osman,Sascha Taute"
+date: "2026-05-22"
+output:
+  html_document:
+    toc: true
+    toc_depth: 6
+    number_sections: true
+    toc_float: true
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    code_download: true
+    df_print: paged
+---
+
+```{r , include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed(42)
+```
+
+```{r , include=FALSE}
+
+library(tidytuesdayR)
+library(tidyverse)  
+library(janitor)    
+library(broom) 
+library(naniar)
+library(scales)
+library(patchwork)
+library(sf)
+library(maps)
+
+tuesdata<-tt_load(2023,week=20)
+tornados <- as.data.frame(tuesdata[1])
+names(tornados)<-gsub("tornados.","",names(tornados))
+```
+
+# Einleitung:
+
+Der verwendete Datensatz stammt von der amerikanischen Wetterbehörde NOAA und wird über TidyTuesday bereitgestellt. Er enthält umfangreiche Informationen über Tornados in den USA.
+
+Zu den wichtigen Infomationen über Tornados gehören das Datum jedes Tornados, in welchen Bundesstaaten er stattfand, die Stärke, sowie die geografische Position (Breiten- und Längengrad) und weitere Eigenschaften wie der zurückgelegte Weg des Tornados sowie Daten zum angerichteten Schaden.
+
+Im Rahmen der Analyse soll folgende Forschungsfrage beantwortet werden:
+
+**Wie haben sich Häufigkeit, Intensität und räumliche Verteilung von Tornados seit 1950 verändert?**
+
+
+# Einblick in die Tornadodaten
+
+## Beschreibung des Datensatzes
+Im Datensatz entspricht eine Zeile immer einem Tornado. Die Gesamtzahl der erfassten Tornados entspricht:
+
+```{r}
+cat("Anzahl Tornados:", nrow(tornados))
+```
+
+Für jeden Tornado wird eine Reihe von Attributen angegeben. Diese können der folgenden Liste entnommen werden:
+
+```{r}
+# Kurze Beschreibungen; abgeschrieben und übersetzt aus dem TidyTuesday Data Dictionary
+Beschreibungen <- tibble::tribble(
+  ~Spaltenname,      ~Beschreibung,
+  "om",           "Tornado-Nummer (ID innerhalb des Jahres)",
+  "yr",           "Jahr, 1950-2022",
+  "mo",           "Monat, 1-12",
+  "dy",           "Tag des Monats, 1-31",
+  "date",         "Datum",
+  "time",         "Uhrzeit",
+  "tz",           "Zeitzone (tz database)",
+  "datetime_utc", "Datum und Uhrzeit, normalisiert auf UTC",
+  "st",           "Zwei-Buchstaben-Kürzel des Bundesstaats",
+  "stf",          "State FIPS-Nummer",
+  "mag",          "Magnitude auf der F-Skala (ab 2007 EF-Skala)",
+  "inj",          "Anzahl der Verletzten",
+  "fat",          "Anzahl der Todesfälle",
+  "loss",         "Geschätzter Sachschaden in Dollar",
+  "slat",         "Start-Breitengrad (Dezimalgrad)",
+  "slon",         "Start-Längengrad (Dezimalgrad)",
+  "elat",         "End-Breitengrad (Dezimalgrad)",
+  "elon",         "End-Längengrad (Dezimalgrad)",
+  "len",          "Länge der Tornadospur in Meilen",
+  "wid",          "Breite der Tornadospur in Yards",
+  "ns",           "Anzahl betroffener Bundesstaaten (1-3)",
+  "sn",           "State-Nummer für diese Zeile (1 = vollständiger Track)",
+  "f1",           "FIPS-Code des 1. betroffenen Countys",
+  "f2",           "FIPS-Code des 2. betroffenen Countys",
+  "f3",           "FIPS-Code des 3. betroffenen Countys",
+  "f4",           "FIPS-Code des 4. betroffenen Countys",
+  "fc",           "Wurde die Magnitude (mag) geschätzt?"
+)
+
+# Spaltenname und tatsächlicher Datentyp aus dem Dataframe, der dann mit den Beschreibungen oben verbunden wird
+spalten <- tibble::tibble(
+  Spaltenname = names(tornados),
+  Datentyp = purrr::map_chr(tornados, ~ class(.x)[1])
+) %>%
+  left_join(Beschreibungen, by = "Spaltenname")
+
+spalten
+```
+
+
+
+## Überblick über die Daten
+
+In der unten gezeigten Tabelle sind 10 Einträge von Tornados beispielhaft dargestellt:
+
+```{r}
+tornados %>% 
+  select(-om) %>% 
+  slice_sample(n=10)
+```
+
+
+## Vollständigkeit des Datensatzes
+Die folgende Tabelle zeigt den Anteil der fehlenden Werte je Attribut. Für das Attribut "loss", das den geschätzten Sachschaden repräsentiert, fehlen etwa 40 % der Einträge und für das Attribut "mag", der Stärke des Tornados, fehlen etwa 1 % der Einträge. Die weiteren Attribute enthalten keine fehlenden Werte.
+```{r}
+miss_var_summary(tornados)
+```
+
+## Verteilung der Attribute
+
+### Zeitliche Verteilung
+Die Zahl der erfassten Tornados hat über den erfassten Zeitraum im Mittel um etwa 12 im Jahr zugenommen. Während in den 1950er-Jahren noch etwa 500 Tornados im Jahr erfasst wurden, ist deren Zahl auf etwa 1350 gegen Anfang der 2020er-Jahre gestiegen. Hierbei ist jedoch unklar, ob der Trend auch durch einen Meldebias beeinflusst wird, also einer besseren Erkennung insbesondere schwächerer Tornados, zu der Zunahme beigetragen hat. Die meisten Tornados finden im Frühjahr statt, wobei die größte Zahl im Monat Mai aufgezeichnet wurde. Tornados finden überwiegend am Nachmittag statt.
+```{r}
+# Lineare Regression
+modell_jahr <- lm(n ~ yr, data = tornados %>% count(yr))
+
+# Koeffizienten und Bestimmtheitsmaß rausziehen
+koeff <- broom::tidy(modell_jahr)
+guete <- broom::glance(modell_jahr)
+
+# Runden damit die Funktion nicht so doof aussieht
+steigung <- round(koeff$estimate[koeff$term == "yr"], 1)
+achsenabschnitt <- round(koeff$estimate[koeff$term == "(Intercept)"])
+r2 <- round(guete$r.squared, 2)
+
+funktions_text <- paste0(
+  "y ≈ ", steigung, "x + (", achsenabschnitt, ")\n",
+  "R² = ", r2
+)
+
+# Tornados nach Jahr
+plot_jahr <- tornados %>%
+  count(yr) %>%
+  ggplot(aes(x = yr, y = n)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_smooth(method = "lm") +
+  annotate("text", x = -Inf, y = Inf, label = funktions_text,
+           hjust = -0.05, vjust = 1.2, size = 3.2) +
+  labs(title = "Nach Jahr (1950-2022)", x = "Jahr", y = "Anzahl Tornados") +
+  theme_minimal()
+
+# Tornados nach Monat
+plot_monat <- tornados %>%
+  count(mo) %>%
+  ggplot(aes(x = factor(mo), y = n)) +
+  geom_col(fill = "darkorange") +
+  scale_x_discrete(
+    breaks = seq(1, 12, by = 2),
+    labels = month.abb[seq(1, 12, by = 2)]) +
+  labs(title = "Nach Monat", x = "Monat", y = "Anzahl Tornados") +
+  theme_minimal()
+
+# Tornados nach Stunde
+plot_uhrzeit <- tornados %>%
+  mutate(stunde = lubridate::hour(time)) %>%
+  count(stunde) %>%
+  ggplot(aes(x = stunde, y = n)) +
+  geom_col(fill = "darkred") +
+  scale_x_continuous(breaks = seq(0, 23, by = 4)) +
+  labs(title = "Nach Uhrzeit", x = "Stunde", y = "Anzahl Tornados") +
+  theme_minimal()
+
+# Nebeneinander
+plot_jahr + plot_monat + plot_uhrzeit
+```
+
+### Verteilung der Schäden
+Der überwiegende Anteil der Tornados im Datensatz weist eine geringere Schwere auf. Am häufigsten kommen Tornados der Magnitude 0 vor. Durch nahezu keinen der Tornados werden Menschen verletzt oder getötet und nur in etwas mehr als der Hälfte der Fälle liegt ein Sachschaden vor. Dass im Sachschaden‑Diagramm die Kategorie „0“ fehlt, obwohl sie vorgesehen war, zeigt, dass die fehlenden Werte wahrscheinlich Tornados mit genau null Dollar Schaden sind. Inflation wurde bei der Betrachtung der Sachschäden nicht berücksichtigt.
+```{r}
+# Magnitude
+plot_mag <- tornados %>%
+  count(mag) %>%
+  mutate(mag = factor(mag, levels = 0:5)) %>%
+  ggplot(aes(x = mag, y = n)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Magnitude", x = "Magnitude", y = "Anzahl") +
+  theme_minimal()
+
+# Verletzte
+plot_inj <- tornados %>%
+  mutate(bin = cut(inj,
+                   breaks = c(-1, 0, 1, 5, 10, 50, Inf),
+                   labels = c("0", "1", "2–5", "6–10", "11–50", ">51"))) %>%
+  mutate(bin = factor(bin, levels = c("0", "1", "2–5", "6–10", "11–50", ">51"))) %>%
+  count(bin) %>%
+  ggplot(aes(x = bin, y = n)) +
+  geom_col(fill = "darkorange") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Verletzte", x = "Anzahl Verletzte", y = "Anzahl Tornados") +
+  theme_minimal()
+
+# Getötete
+plot_fat <- tornados %>%
+  mutate(bin = cut(fat,
+                   breaks = c(-1, 0, 1, 2, 5, 10, Inf),
+                   labels = c("0", "1", "2", "3–5", "6–10", ">11"))) %>%
+  mutate(bin = factor(bin, levels = c("0", "1", "2", "3–5", "6–10", ">11"))) %>%
+  count(bin) %>%
+  ggplot(aes(x = bin, y = n)) +
+  geom_col(fill = "darkred") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Getötete", x = "Anzahl Todesfälle", y = "Anzahl Tornados") +
+  theme_minimal()
+
+# Sachschaden
+plot_loss <- tornados %>%
+  mutate(bin = cut(loss,
+                   breaks = c(-1, 0, 1e5, 1e6, 1e7, 1e8, Inf),
+                   labels = c("0", "1–100 Tsd.", "100 Tsd.–1 Mio.",
+                              "1–10 Mio.", "10–100 Mio.", ">100 Mio."))) %>%
+  mutate(bin = factor(bin, levels = c("0", "1–100 Tsd.", "100 Tsd.–1 Mio.",
+                                      "1–10 Mio.", "10–100 Mio.", ">100 Mio."))) %>%
+  count(bin) %>%
+  ggplot(aes(x = bin, y = n)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = n), vjust = -0.3, size = 3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Sachschaden", x = "Sachschaden in Dollar", y = "Anzahl Tornados") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+(plot_mag + plot_inj) / (plot_fat + plot_loss)
+```
+
+### Darstellung der Häufigkeit von Tornados nach Bundesstaaten
+
+In Texas wurde die höchste Anzahl an Tornados registriert mit insgesamt doppelt so vielen, wie im zweitplatzierten Bundestaat. Danach folgen Kansas und Oklahoma.
+```{r}
+st_count <- tornados %>%
+  count(st, sort = TRUE)
+
+staats_5 <- st_count$st[1:5] #wird später benutzt
+
+n <- nrow(st_count)
+half <- ceiling(n / 2)
+
+st_count_split <- st_count %>%
+  mutate(part = ifelse(row_number() <= half, "Teil 1", "Teil 2"))
+
+ggplot(st_count_split, aes(x = reorder(st, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  facet_wrap(~part, scales = "free_y") +
+  labs(
+    title = "Zahl der Tornados nach Bundesstaat",
+    x = "Bundesstaat",
+    y = "Anzahl Tornados")
+```
+
+### Räumliche Verteilung aller Tornados im Jahr 2022
+
+Die folgende Karte zeigt die räumliche Verteilung aller Tornados im Jahr 2022. Diese häufen sich vor allem in den Bundesstaaten, die an den Golf von Mexiko angrenzen, sowie nördlich davon.
+```{r,warning=FALSE}
+tornados_2022 <- tornados %>% 
+  select(yr, slon, elat, elon, slat, mo, st) %>% 
+  filter(yr == 2022)
+
+tornados_k <- st_as_sf(
+  tornados_2022,
+  coords = c("slon", "slat"),
+  crs = 4326
+)
+
+sf::sf_use_s2(FALSE)
+
+states <- st_as_sf(map("state", plot = FALSE, fill = TRUE))
+states <- st_make_valid(states)
+cntrd <- st_centroid(states)
+
+centers <- cbind(cntrd, st_coordinates(cntrd))
+centers <- centers %>%
+  mutate(
+    ID = recode(ID,
+      "alabama" = "AL",
+      "arizona" = "AZ",
+      "arkansas" = "AR",
+      "california" = "CA",
+      "colorado" = "CO",
+      "connecticut" = "CT",
+      "delaware" = "DE",
+      "district of columbia" = "DC",
+      "florida" = "FL",
+      "georgia" = "GA",
+      "idaho" = "ID",
+      "illinois" = "IL",
+      "indiana" = "IN",
+      "iowa" = "IA",
+      "kansas" = "KS",
+      "kentucky" = "KY",
+      "louisiana" = "LA",
+      "maine" = "ME",
+      "maryland" = "MD",
+      "massachusetts" = "MA",
+      "michigan" = "MI",
+      "minnesota" = "MN",
+      "mississippi" = "MS",
+      "missouri" = "MO",
+      "montana" = "MT",
+      "nebraska" = "NE",
+      "nevada" = "NV",
+      "new hampshire" = "NH",
+      "new jersey" = "NJ",
+      "new mexico" = "NM",
+      "new york" = "NY",
+      "north carolina" = "NC",
+      "north dakota" = "ND",
+      "ohio" = "OH",
+      "oklahoma" = "OK",
+      "oregon" = "OR",
+      "pennsylvania" = "PA",
+      "rhode island" = "RI",
+      "south carolina" = "SC",
+      "south dakota" = "SD",
+      "tennessee" = "TN",
+      "texas" = "TX",
+      "utah" = "UT",
+      "vermont" = "VT",
+      "virginia" = "VA",
+      "washington" = "WA",
+      "west virginia" = "WV",
+      "wisconsin" = "WI",
+      "wyoming" = "WY"
+    )
+  )
+
+ggplot() +
+  geom_sf(data = states) +
+  geom_sf(data = cntrd, color = "grey", size = 0.001) +
+  geom_sf_text(data = centers, aes(label = ID)) +
+  geom_sf(data = tornados_k, color = "red", alpha = 0.2, size = 1.5) +
+  labs(
+    title = "Tornados im Jahr 2022",
+    x = "Längengrad",
+    y = "Breitengrad"
+  ) +
+  theme_minimal()
+```
+
+
+Hier sind die Pfade von 250 beliebig gewählten Tornados dargestellt. Diese sind als einfacher Luftlinienpfad vom Start- zum Endpunkt berechnet.
+
+```{r,warning=FALSE}
+tornado_linien <- tornados %>%
+  filter(!is.na(elon), !is.na(elat), elon != 0, elat != 0) %>%
+  slice_sample(n = 250) %>%
+  rowwise() %>%
+  mutate(geometry = st_sfc(
+    st_linestring(matrix(c(slon, elon, slat, elat), ncol = 2)), 
+    crs = 4326
+  )) %>%
+  st_as_sf()
+
+ggplot() +
+  geom_sf(data = states) +
+  geom_sf(data = cntrd, color = "grey", size = 0.001) +
+  geom_sf_text(data = centers, aes(label = ID)) +
+  geom_sf(data = tornado_linien, color = "red", linewidth = 2) +
+  labs(title = "Tornadopfade (250 beliebige Tornados)",
+       x = "Längengrad", 
+       y = "Breitengrad")
+```
+
+# Häufigkeit und Intensität der Tornados
+
+Zur Analyse des zeitlichen Trends wurden die Tornadodaten nach Stärke gruppiert, für den Zeitraum 1950 bis 2019 in sieben vollen Dekaden zusammengefasst und mittels Spearman-Korrelation ausgewertet. Es wurden keine jährlichen Daten verwendet, da schwere Tornados sehr selten sind. Die geringere Power des Tests wird daher in Kauf genommen.
+Der Test offenbart einen Widerspruch zum in Kapitel 2.4.1 gezeigten Gesamtanstieg. Während schwache Tornados (Mag 0) über die Jahrzehnte hinweg statistisch signifikant zunehmen, verzeichnen mittlere bis starke Tornados (Mag 2 bis Mag 4) einen starken und signifikanten Rückgang. Bei der extrem seltenen Kategorie Mag 5 ist der Trend ebenfalls negativ, aufgrund der geringen Fallzahlen jedoch nicht signifikant.
+Dieses Ergebnis liefert ein Indiz dafür, dass die zuvor beobachtete Zunahme aller Tornados ein Erfassungsfehler sein kann, da durch moderne Radartechnik und Kommunikationswege fast alle schwachen Ereignisse registriert werden, die in den 1950er-Jahren unentdeckt blieben, während die Häufigkeit der gefährlichen Tornados in der Realität abnimmt. Alle weiteren Analysen werden daher auf Tornados mit einer Magnitude von mindestens 2 beschränkt.
+
+```{r}
+# Daten nach Dekaden zusammenfassen
+haeufigkeit_dekade <- tornados %>%
+  filter(!is.na(mag)) %>%
+  mutate(decade = 10 * (yr %/% 10)) %>%
+  filter(decade >= 1950 & decade < 2020) %>%
+  count(decade, mag) %>%
+  mutate(mag_label = paste("Mag", mag))
+
+plot_dekade_trends <- ggplot(haeufigkeit_dekade, aes(x = decade, y = n)) +
+  geom_line(color = "steelblue", linewidth = 0.8) +
+  geom_point(color = "steelblue", size = 2.5) +
+  facet_wrap(~ mag_label, scales = "free_y") +
+  expand_limits(y = 0) + 
+  scale_x_continuous(breaks = seq(1950, 2010, by = 10)) +
+  labs(
+    title = "Tornadohäufigkeit nach Magnitude je Jahrzehnt (1950-2019)",
+    x = "Dekade (Startjahr)",
+    y = "Summe der Tornados im Jahrzehnt") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(plot_dekade_trends)
+
+#Spearman Test
+trend_tests_dekade <- haeufigkeit_dekade %>%
+  group_by(mag_label) %>%
+  summarise(
+    test = list(cor.test(decade, n, method = "spearman", exact = FALSE)),
+    .groups = "drop"
+  ) %>%
+  mutate(ergebnis = purrr::map(test, broom::tidy)) %>%
+  unnest(ergebnis) %>%
+  select(mag_label, estimate, p.value) %>%
+  rename(
+    Magnitude = mag_label,
+    Sperman_Rho = estimate,
+    p_Wert = p.value
+  )
+
+print(trend_tests_dekade)
+```
+
+
+
+# Darstellung der Häufigkeit starker Tornados im Verlauf der Jahre basierend auf den Bundesstaaten
+
+Nachfolgend wird die Verteilung von Tornados mit einer Magnitude von 2 oder mehr in den fünf Bundesstaaten mit den häufigsten Tornados über die Zeit dargestellt.
+
+Vor allem für Florida und Texas ist bis etwa ins Jahr 1970 ein deutlicher Anstieg feststellbar, der dann in Florida bis zu einem Tiefpunkt etwa im Jahr 2010 abnimmt. In Nebraska ist der Rückgang insgesamt am schwächsten ausgeprägt.
+
+```{r}
+tornados_st <- tornados %>%
+  filter(st %in% staats_5, mag >= 2) %>%
+  select(st, yr, mag)
+
+ggplot(tornados_st,
+       aes(x = st,
+           y = yr,
+           fill = st)) +
+  geom_violin() +
+  theme_minimal() +
+  labs(title = "Zeitliche Verteilung starker Tornados (Magnitude ≥ 2) je Bundesstaat",
+       x = "Bundesstaat",
+       y = "Jahr")
+```
+
+# Veränderungen der räumlichen Verteilung der Tornados
+Zur Betrachtung der Veränderungen in der räumlichen Verteilung der Tornadodaten wird der Datensatz in zwei gleiche Zeiträume eingeteilt (1950–1985 und 1986–2022) und anschließend eine 2D-Kerndichteschätzung vorgenommen. Dabei wird die gleiche Glättung für beide Zeitperioden benutzt. In der Abbildung ist eine deutliche Verschiebung der Bereiche höchster Aktivitätendichte nach Südosten feststellbar. In Florida (dem südöstlichsten Bundesstaat) hat die Zahl schwerer Tornados jedoch abgenommen.
+```{r}
+tornado_epochen <- tornados %>%
+  filter(mag >= 2, !is.na(slon), !is.na(slat)) %>%
+  mutate(epoche = ifelse(yr < 1986, "1950–1985", "1986–2022"))
+
+ggplot() +
+  geom_sf(data = states, fill = "whitesmoke", color = "grey80") +
+  stat_density_2d(
+    data = tornado_epochen,
+    aes(x = slon, y = slat, fill = after_stat(level)),
+    geom = "polygon",
+    alpha = 0.4,
+    h = c(2.5, 2.5) # gleiche Glättung für beide Epochen
+  ) +
+  scale_fill_viridis_c(
+    option = "magma", 
+    name = "Aktivitätsdichte",
+    breaks = function(x) x,
+    labels = c("Niedrig", "Hoch")
+  ) +
+  facet_wrap(~ epoche, ncol = 2) +
+  labs(
+    title = "Veränderung der räumlichen Verteilung starker Tornados (Magnitude ≥ 2) \n der Zeiträume 1950–1985 und 1986–2022",
+    x = "Längengrad",
+    y = "Breitengrad"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+# Fazit
+
+Die Analyse der NOAA-Daten von 1950 bis 2022 zeigt, dass der scheinbare Anstieg der jährlichen Gesamtanzahl an Tornados primär auf einen Meldebias durch die verbesserte Erfassung schwacher Ereignisse (Magnitude 0 und 1) zurückzuführen ist. Im Gegensatz dazu verzeichnet die Häufigkeit mittlerer bis starker Tornados (Magnitude ≥ 2) seit den 1950er-Jahren einen statistisch signifikanten Rückgang. Geografisch ist Texas der Bundesstaat mit den insgesamt meisten registrierten Ereignissen. Der Epochenvergleich mittels 2D-Kerndichteschätzung zeigt jedoch eine deutliche Verschiebung der Kerngebiete starker Tornado-Aktivität nach Südosten, während in Florida im gleichen Zeitraum ein Rückgang schwerer Ereignisse zu beobachten ist. Tornados finden am häufigsten in den Monaten April bis Juli und am späten Nachmittag statt. Nur eine kleine Zahl an Tornados führt zudem zu Personenschäden und etwa 60 % zu Sachschäden. In der Analyse nicht berücksichtigt wurden geänderte Erfassungsmethodiken und Inflationseffekte.
+
+# Ressourcen
+
+<https://r-graph-gallery.com/package/sf.html>
+
+<https://r.geocompx.org/>
