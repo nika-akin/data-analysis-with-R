@@ -1,0 +1,407 @@
+---
+title: "Curative and preventive Healthcare spending"
+author: "udnps"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float: true
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    code_download: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+# Globale Einstellungen: Code wird angezeigt, aber Warnungen und Meldungen werden unterdrückt
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+# Verhindert die wissenschaftliche E-Schreibweise bei großen Zahlen
+options(scipen = 15)
+
+library(tidyverse)
+
+# Daten über das offizielle tidytuesdayR-Package laden
+tuesdata <- tidytuesdayR::tt_load('2026-04-21')
+
+# Die einzelnen Tabellen in eigene Objekte extrahieren
+financing_schemes <- tuesdata$financing_schemes
+health_spending <- tuesdata$health_spending
+spending_purpose <- tuesdata$spending_purpose
+
+
+```
+# Our Question
+How has the Corona pandemic influenced the curative and the preventive healthcare spending all over the world?
+
+## Hypothesis
+We hypothesize that preventive healthcare spending showed a slight upward trend before the COVID-19 pandemic. During the pandemic, spending likely experienced a significant peak, after which it declined somewhat again. However, we expect it to have remained at a higher level than before the pandemic and it continues to increase, possibly at a slower rate.
+
+## Methodology
+To appropriately illustrate the relationship, we begin by visualizing time series trends of curative and preventive healthcare spending. In this context, 2020 is highlighted as the onset of the COVID-19 pandemic. To formally test our hypothesis while accounting for the panel structure of the data (repeated national observations over time), we specify a Linear Mixed-Effects Model (LMM) with country-level random intercepts. Furthermore, to capture the expected spending spike followed by a partial adjustment, pandemic dynamics are disaggregated into the acute peak phase (2020–2021) and the post-emergency phase (2022 onwards).
+
+# The data
+
+
+## Summary
+```{r summary}
+# Eine übersichtliche Zusammenfassung der Tabellengrößen erstellen
+data_summary <- tibble(
+  Datensatz = c(
+    "financing_schemes",
+    "health_spending",
+    "spending_purpose"
+  ),
+  Rows = c(
+    nrow(financing_schemes),
+    nrow(health_spending),
+    nrow(spending_purpose)
+  ),
+  Columns = c(
+    ncol(financing_schemes),
+    ncol(health_spending),
+    ncol(spending_purpose)
+  )
+)
+
+
+data_summary %>%
+  knitr::kable(
+    caption = "Dataset Dimensions (Rows and Columns)"
+  )
+
+```
+
+How you can see, here are many objects, however less variables
+
+
+# Analysis
+
+## Data Preparation
+
+First, we need to filter and aggregate the data. We are specifically interested in the spending_purpose dataset to isolate curative and preventive healthcare spending over the years.
+
+```{r data-prep}
+
+spending_filtered <- spending_purpose %>%
+  filter(!is.na(value)) %>%
+  
+  filter(str_detect(unit, "(?i)US\\$|USD|constant")) %>% 
+  filter(str_detect(spending_purpose, "(?i)preventive|curative")) %>%
+  mutate(
+    category = if_else(str_detect(spending_purpose, "(?i)preventive"), 
+                       "Preventive Care", "Curative Care")
+  )
+
+
+spending_yearly <- spending_filtered %>%
+  group_by(year, category) %>%
+  summarise(
+    mean_spending = mean(value, na.rm = TRUE),
+    median_spending = median(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+spending_yearly
+```
+
+```{r data-prep-pct}
+library(tidyverse)
+
+
+spending_pct_filtered <- spending_purpose %>%
+  filter(!is.na(value)) %>%
+  filter(str_detect(unit, "(?i)%|percent")) %>% 
+  filter(str_detect(spending_purpose, "(?i)preventive|curative")) %>%
+  mutate(
+    category = if_else(str_detect(spending_purpose, "(?i)preventive"), 
+                       "Preventive Care", "Curative Care")
+  )
+
+
+spending_pct_yearly <- spending_pct_filtered %>%
+  group_by(year, category) %>%
+  summarise(
+    mean_spending = mean(value, na.rm = TRUE),
+    median_spending = median(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+To ensure fair comparisons between countries with different economic scales, analyzing expenditure as a percentage of total health budgets (% of current health expenditure) provides the most reliable metric.
+
+## Average Share of Health Budget
+
+
+```{r plot-pct-mean, fig.cap="Trends in average percentage share of healthcare budget"}
+ggplot(spending_pct_yearly, aes(x = year, y = mean_spending, color = category)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = 2020, linetype = "dashed", color = "red", alpha = 0.7) +
+  annotate("text", x = 2020.1, y = max(spending_pct_yearly$mean_spending, na.rm = TRUE) * 0.95, 
+           label = "Pandemie (2020)", color = "red", hjust = 0, size = 3.5) +
+  scale_color_manual(values = c("Curative Care" = "#2b5c8f", "Preventive Care" = "#d95f02")) +
+  labs(
+    title = "Average Share of Total Health Budget (Mean %)",
+    subtitle = "Worldwide comparison of preventive vs. curative spending shares",
+    x = "Year",
+    y = "Share of Health Budget (%)",
+    color = "Categorie"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+Interpretation:
+Prior to 2020, curative care consistently consumed the vast majority of national health budgets, remaining relatively stable. In 2020, preventive care experienced a sharp, temporary surge as nations directed emergency funding toward containment, testing, and vaccination programs. Following this initial peak, preventive care spending declined again as emergency measures were phased out, returning closer to its pre-pandemic baseline level.
+  
+  
+## Median Share of Health Budget
+
+
+```{r plot-pct-median, fig.cap="Trends in median percentage share of healthcare budget"}
+ggplot(spending_pct_yearly, aes(x = year, y = median_spending, color = category)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = 2020, linetype = "dashed", color = "red", alpha = 0.7) +
+  annotate("text", x = 2020.1, y = max(spending_pct_yearly$median_spending, na.rm = TRUE) * 0.95, 
+           label = "Pandemie (2020)", color = "red", hjust = 0, size = 3.5) +
+  scale_color_manual(values = c("Curative Care" = "#2b5c8f", "Preventive Care" = "#d95f02")) +
+  labs(
+    title = "Median Share of Total Health Budget (Median %)",
+    subtitle = "Robust metric minimizing influence from extreme national outliers",
+    x = "Year",
+    y = "Share of Health Budget (%)",
+    color = "Category"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+**Interpretation:**
+Because arithmetic means can be skewed by extremely high spending in a few wealthy nations, examining the median provides a clearer picture for the typical country. The median trajectory confirms a sharp, temporary spike in preventive spending in 2020, followed by a subsequent drop as pandemic response programs wound down across most jurisdictions.
+
+
+## Absolute Expenditure Dynamics
+
+
+```{r plot-free-y1, fig.width=9, fig.height=4.5, fig.cap="Trends in absolute expenditure with independent scales"}
+# Datenaufbereitung für USD
+spending_usd_yearly <- spending_purpose %>%
+  filter(!is.na(value)) %>%
+  filter(str_detect(unit, "(?i)US\\$|USD|constant")) %>% 
+  filter(str_detect(spending_purpose, "(?i)preventive|curative")) %>%
+  mutate(
+    category = if_else(str_detect(spending_purpose, "(?i)preventive"), 
+                       "Preventive Care", "Curative Care")
+  ) %>%
+  group_by(year, category) %>%
+  summarise(
+    mean_spending = mean(value, na.rm = TRUE),
+    median_spending = median(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Plot mit getrennten Y-Achsen
+ggplot(spending_usd_yearly, aes(x = year, y = mean_spending, color = category)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = 2020, linetype = "dashed", color = "red", alpha = 0.7) +
+  facet_wrap(~ category, scales = "free_y") + 
+  scale_color_manual(values = c("Curative Care" = "#2b5c8f", "Preventive Care" = "#d95f02")) +
+  labs(
+    title = "Absolute Expenditure Trends (Faceted Y-Axes)",
+    subtitle = "Facilitates direct trajectory comparisons despite vast scale differences",
+    x = "Year",
+    y = "Spending (in US Dollars)",
+    color = "Category"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+**Interpretation:**
+Because absolute curative spending is orders of magnitude larger than preventive spending, plotting them on a single shared Y-axis flattens the preventive curve. Utilizing faceted axes with independent Y-scales reveals contrasting long-term trajectories:
+
+* **Curative Care:** Absolute spending increased substantially during the pandemic and has remained at a high level, driven by higher baseline hospital operating costs, post-pandemic treatment backlogs, and general inflation in healthcare services.
+* **Preventive Care:** Absolute spending experienced a dramatic, temporary spike during 2020–2021 due to rapid procurement of vaccines, personal protective equipment (PPE), and testing infrastructure. However, it subsequently declined sharply as emergency public health measures were phased out.
+
+*Note on Absolute vs. Relative Metrics:* 
+The difference between absolute USD figures and percentage shares highlights the expansion of the overall health budget. Even though curative care spending increased significantly in absolute terms, its percentage share remained relatively stable because the overall budget expanded simultaneously. In contrast, preventive care temporarily captured a larger percentage share during the height of the crisis, but both its absolute funding and relative budget share dropped once acute pandemic measures ended.
+
+
+## Relative Growth Dynamics
+
+Evaluating raw expenditure figures or static budget shares can obscure sector-specific growth dynamics due to the vast baseline disparity between categories. Because curative care consumes the vast majority of healthcare budgets, absolute monetary changes in curative spending dwarf those of preventive care, making direct visual or analytical comparisons misleading.
+
+To eliminate this baseline magnitude bias, we normalize expenditures by indexing the initial available year to $100\%$. This transformation serves a dual purpose:
+
+1. **Equalizing the Baseline:** It allows us to analyze the relative growth velocity of each sector independently of its absolute financial size.
+2. **Measuring Proportional Expansion:** It directly reveals how dynamically public health priorities shifted during the COVID-19 pandemic relative to their respective pre-pandemic starting points.
+
+By evaluating spending on a standardized index scale, we can test whether the pandemic triggered a proportionally stronger acceleration in preventive public health interventions compared to routine curative care.
+
+```{r data-prep-indexed}
+# Berechnung des Index relativ zum ersten verfügbaren Jahr (100 %)
+spending_indexed <- spending_pct_yearly %>%
+  group_by(category) %>%
+  arrange(year) %>%
+  mutate(
+    # Nimmt dynamisch den Wert des ersten vorhandenen Jahres als Basis
+    base_mean = first(mean_spending),
+    base_median = first(median_spending),
+    
+    # Index berechnen: (Aktueller Wert / Basiswert) * 100
+    index_mean = (mean_spending / base_mean) * 100,
+    index_median = (median_spending / base_median) * 100,
+    
+    # Speichert das Basisjahr für den Plot
+    start_year = first(year)
+  ) %>%
+  ungroup()
+```
+
+### Relative Growth Plot 
+
+
+```{r plot-indexed, fig.cap="Relative growth of healthcare spending compared to baseline year"}
+
+base_year_label <- min(spending_indexed$year, na.rm = TRUE)
+
+ggplot(spending_indexed, aes(x = year, y = index_mean, color = category)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  # Referenzlinie bei 100 % (Startjahr)
+  geom_hline(yintercept = 100, linetype = "dotted", color = "black", alpha = 0.6) +
+  # Markierung Pandemie-Beginn 2020
+  geom_vline(xintercept = 2020, linetype = "dashed", color = "red", alpha = 0.7) +
+  annotate("text", x = 2020.1, y = max(spending_indexed$index_mean, na.rm = TRUE) * 0.95, 
+           label = "Pandemie (2020)", color = "red", hjust = 0, size = 3.5) +
+  scale_color_manual(values = c("Curative Care" = "#2b5c8f", "Preventive Care" = "#d95f02")) +
+  labs(
+    title = paste0("Relative Spending Growth (Baseline ", base_year_label, " = 100%)"),
+    subtitle = "Percentage growth trajectory of preventive vs. curative spending",
+    x = "Year",
+    y = paste0("Growth Index (", base_year_label, " = 100%)"),
+    color = "Category"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+Interpretation:
+The growth index plot emphasizes the disproportionate expansion of public health prevention during the crisis. While curative care expenditure maintained a steady trajectory, preventive care exhibited an unprecedented relative surge in 2020, confirming a major reallocation of public health priorities.
+
+
+# Statistical Modeling (Hypothesis Testing)
+
+To formally test our hypothesis regarding the temporal impact of the COVID-19 pandemic on preventive healthcare spending, we estimate a Linear Mixed-Effects Model.To correct for country-level autocorrelation (repeated measures within identical jurisdictions), we specify a random intercept for each country $\left(1 \mid \text{country\_id}\right)$. We center time at $2019$ (year_centered = year - 2019) so that the intercept represents the immediate pre-pandemic baseline. To isolate the temporary nature of the response, we define two binary phase indicators:
+
+  is_peak: Dummy variable equal to $1$ for the acute pandemic response years ($2020\text{--}2021$) and $0$ otherwise.
+
+  is_post_covid: Dummy variable equal to $1$ for the post-emergency period ($2022$ onwards) and $0$ otherwise.
+
+
+```{r model-comparison}
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+
+# 1. Daten mit iso3_code als Länder-ID aufbereiten
+spending_model_data <- spending_pct_filtered %>%
+  mutate(
+    country_id = iso3_code,
+    year_centered = year - 2019,
+    is_peak = if_else(year %in% c(2020, 2021), 1, 0),
+    is_post_covid = if_else(year >= 2022, 1, 0)
+  )
+
+# 2. Modell 1: Preventive Care
+model_preventive <- lmer(
+  value ~ year_centered + is_peak + is_post_covid + (1 | country_id), 
+  data = spending_model_data %>% filter(category == "Preventive Care")
+)
+
+# 3. Modell 2: Curative Care
+model_curative <- lmer(
+  value ~ year_centered + is_peak + is_post_covid + (1 | country_id), 
+  data = spending_model_data %>% filter(category == "Curative Care")
+)
+
+# 4. Ergebnisse aus beiden Modellen zusammenführen
+res_preventive <- tidy(model_preventive, effects = "fixed", conf.int = TRUE) %>%
+  mutate(Category = "Preventive Care")
+
+res_curative <- tidy(model_curative, effects = "fixed", conf.int = TRUE) %>%
+  mutate(Category = "Curative Care")
+
+comparison_table <- bind_rows(res_preventive, res_curative) %>%
+  filter(term != "(Intercept)") %>% 
+  mutate(
+    term = case_when(
+      term == "year_centered" ~ "Pre-Pandemic Trend (per year)",
+      term == "is_peak" ~ "Pandemic Surge (2020–2021)",
+      term == "is_post_covid" ~ "Post-Pandemic Level (2022+)",
+      TRUE ~ term
+    )
+  ) %>%
+  select(Category, term, estimate, std.error, statistic, p.value, conf.low, conf.high)
+
+# 5. Gemeinsame Tabelle ausgeben
+comparison_table %>%
+  knitr::kable(
+    digits = 3, 
+    col.names = c("Category", "Parameter", "Estimate", "Std. Error", "t-statistic", "p-value", "Conf. Low", "Conf. High"),
+    caption = "Comparative Linear Mixed-Effects Models: Preventive vs. Curative Care Budget Shares"
+  )
+
+```
+
+```{r plot-model-comparison, fig.cap="Comparison of regression coefficients between Preventive and Curative care"}
+ggplot(comparison_table, aes(x = estimate, y = term, xmin = conf.low, xmax = conf.high, color = Category)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red", alpha = 0.6) +
+  geom_errorbarh(height = 0.3, position = position_dodge(w = 0.5), linewidth = 0.9) +
+  geom_point(size = 3.5, position = position_dodge(w = 0.5)) +
+  scale_color_manual(values = c("Curative Care" = "#2b5c8f", "Preventive Care" = "#d95f02")) +
+  labs(
+    title = "Comparative Regression Coefficients",
+    subtitle = "Fixed effects with 95% CIs for Preventive vs. Curative healthcare spending",
+    x = "Effect Size (Percentage Points of Health Budget)",
+    y = NULL,
+    color = "Category"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    axis.text.y = element_text(size = 10, face = "bold")
+  )
+```
+
+Comparative Model Interpretation & Hypothesis Testing
+
+The comparative linear mixed-effects model provides clear empirical evidence of how national health budget allocations shifted dynamically during the COVID-19 pandemic. By evaluating Preventive Care and Curative Care side-by-side, a clear inverse relationship (trade-off) between the two sectors emerges during the crisis:
+
+* **Pre-Pandemic Baseline Trends (Pre-2020):** Prior to 2020, neither category exhibited a statistically significant annual trend (Preventive: $\beta = -0.075, p = 0.577$; Curative: $\beta = 0.070, p = 0.726$). This confirms that relative budget proportions between prevention and curative care remained stable leading up to the pandemic, establishing a flat baseline.
+
+* **Acute Pandemic Surge (2020–2021):** The acute pandemic phase induced a statistically significant structural shock in opposite directions. The share of national health budgets allocated to Preventive Care experienced an immediate upward surge of nearly $+1.90$ percentage points ($\beta = 1.897, p < 0.001, 95\%\text{ CI } [0.920, 2.873]$). Conversely, Curative Care experienced a significant relative compression of $-2.44$ percentage points ($\beta = -2.437, p = 0.001, 95\%\text{ CI } [-3.871, -1.002]$). This mirror-like shift directly illustrates how emergency resources (testing, vaccination programs, PPE procurement) were rapidly prioritized at the relative expense of routine curative care operations.
+
+* **Post-Pandemic Readjustment (2022+):** In the post-emergency period, the point estimates suggest that preventive spending remained somewhat elevated ($\beta = 1.204$) while curative spending remained depressed ($\beta = -1.319$) relative to pre-2020 levels. However, neither coefficient remains statistically significant at the $5\%$ level (Preventive: $p = 0.106$; Curative: $p = 0.227$). Because both $95\%$ confidence intervals cross zero, we cannot statistically reject the hypothesis that spending proportions began converging back toward their pre-pandemic baselines as emergency public health measures ended.
+
+# Conclusion
+
+This empirical investigation provides strong evidence regarding global healthcare expenditure dynamics:
+
+1. **Pre-Pandemic Baseline:** Prior to 2020, preventive care accounted for a minor, albeit steadily growing, fraction of global health spending compared to curative care.
+2. **Pandemic Peak:** The onset of the COVID-19 pandemic in 2020 triggered an immediate, sharp peak in preventive spending as a share of overall health budgets.
+3. **Post-Pandemic Decline:** Following the emergency response period, preventive health spending declined significantly again as pandemic interventions (such as large-scale testing and vaccination drives) were scaled back, moving back towards pre-pandemic proportions.
+
+
+## Limitations
+Certain limitations should be considered when interpreting these findings. Reporting practices and definitions of preventive care vary across jurisdictions. Additionally, potential reporting delays in national health accounts may impact the completeness of post-2020 data for specific low-income regions. Nevertheless, the aggregate global trend clearly demonstrates that COVID-19 elevated public health prevention to a higher priority on the global policy agenda.
+
+
